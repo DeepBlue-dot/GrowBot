@@ -28,14 +28,26 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       (process.env.NODE_ENV === 'production' ? 'webhook' : 'polling');
 
     if (mode === 'polling') {
-      this.logger.log(`🤖 Starting Telegram Dev Bot in LOCAL DEVELOPMENT MODE (Long Polling)... Token: ${token.substring(0, 10)}...`);
+      this.logger.log(
+        `🤖 Starting Telegram Dev Bot in LOCAL DEVELOPMENT MODE (Long Polling)... Token: ${token.substring(0, 10)}...`,
+      );
       try {
         await this.bot.api.deleteWebhook({ drop_pending_updates: true });
-        this.bot.start({
-          onStart: (botInfo) => {
-            this.logger.log(`⚡ Long Polling Bot active: @${botInfo.username} (ID: ${botInfo.id})`);
-          },
-        });
+        
+        // Start Long Polling non-blocking runner
+        this.bot
+          .start({
+            drop_pending_updates: true,
+            allowed_updates: ['message', 'chat_member', 'my_chat_member', 'callback_query'],
+            onStart: (botInfo) => {
+              this.logger.log(
+                `⚡ Long Polling Bot SUCCESSFULLY ACTIVE: @${botInfo.username} (ID: ${botInfo.id})`,
+              );
+            },
+          })
+          .catch((err) => {
+            this.logger.error(`❌ Long Polling Runner Error: ${err?.message || err}`);
+          });
       } catch (err: any) {
         this.logger.warn(`Failed to connect Long Polling: ${err?.message || err}`);
       }
@@ -60,11 +72,19 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   private setupHandlers() {
     if (!this.bot) return;
 
+    // Global Error Handler
+    this.bot.catch((err) => {
+      const ctx = err.ctx;
+      this.logger.error(`[grammY Error] Exception processing update ${ctx.update.update_id}:`, err.error);
+    });
+
     // Command: /start
     this.bot.command('start', async (ctx) => {
+      this.logger.log(`📩 Received /start command from user ${ctx.from?.username || ctx.from?.id}`);
       const startParam = ctx.match; // e.g. ref_CODE
       const miniAppUrl =
-        this.configService.get<string>('MINI_APP_URL') || 'https://growbot.app';
+        this.configService.get<string>('MINI_APP_URL') ||
+        'https://grow-hekggrmnr-deepblue-dots-projects.vercel.app/miniapp';
 
       const keyboard = new InlineKeyboard()
         .webApp('🚀 Open GrowBot Mini App', miniAppUrl)
@@ -82,6 +102,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     // Command: /help
     this.bot.command('help', async (ctx) => {
+      this.logger.log(`📩 Received /help command from user ${ctx.from?.username || ctx.from?.id}`);
       await ctx.reply(
         `💡 **GrowBot Command Reference:**\n\n` +
           `/start - Open Mini App and get referral link\n` +
@@ -93,6 +114,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     // Command: /stats
     this.bot.command('stats', async (ctx) => {
+      this.logger.log(`📩 Received /stats command from user ${ctx.from?.username || ctx.from?.id}`);
       await ctx.reply(
         `📊 **Your Referral Metrics:**\n\n` +
           `• Verified Referrals: **5**\n` +
