@@ -17,7 +17,11 @@ export class ReferralService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async registerIntent(referrerCode: string, inviteeId: string, communityChatId: string) {
+  async registerIntent(
+    referrerCode: string,
+    inviteeId: string,
+    communityChatId: string,
+  ) {
     const intentKey = `${inviteeId}:${communityChatId}`;
     const intentData: PostgresReferralIntent = {
       id: `ref-${Date.now()}`,
@@ -29,9 +33,16 @@ export class ReferralService {
     };
 
     try {
-      // Attempt PostgreSQL persistent write via Prisma Client
-      if ((this.prisma as any).referral?.create) {
-        await (this.prisma as any).referral.create({
+      const referralDelegate = (
+        this.prisma as unknown as {
+          referral?: {
+            create: (args: unknown) => Promise<unknown>;
+          };
+        }
+      ).referral;
+
+      if (referralDelegate?.create) {
+        await referralDelegate.create({
           data: {
             referrerId: referrerCode,
             inviteeId,
@@ -39,12 +50,16 @@ export class ReferralService {
             intentAt: intentData.intentAt,
           },
         });
-        this.logger.log(`🐘 [PostgreSQL Intent Saved] Invitee ${inviteeId} -> Referrer ${referrerCode} (Status: PENDING_JOIN)`);
+        this.logger.log(
+          `🐘 [PostgreSQL Intent Saved] Invitee ${inviteeId} -> Referrer ${referrerCode} (Status: PENDING_JOIN)`,
+        );
       }
     } catch {
       // Memory fallback if DB is offline during development
       this.memoryIntents.set(intentKey, intentData);
-      this.logger.log(`🐘 [PostgreSQL Intent Saved (Memory Store)] Invitee ${inviteeId} -> Referrer ${referrerCode}`);
+      this.logger.log(
+        `🐘 [PostgreSQL Intent Saved (Memory Store)] Invitee ${inviteeId} -> Referrer ${referrerCode}`,
+      );
     }
 
     this.memoryIntents.set(intentKey, intentData);
@@ -60,28 +75,33 @@ export class ReferralService {
     };
   }
 
-  async findPendingIntent(inviteeId: string, communityChatId: string): Promise<PostgresReferralIntent | null> {
+  findPendingIntent(
+    inviteeId: string,
+    communityChatId: string,
+  ): Promise<PostgresReferralIntent | null> {
     const intentKey = `${inviteeId}:${communityChatId}`;
     const intent = this.memoryIntents.get(intentKey);
     if (intent && intent.status === 'PENDING_JOIN') {
-      return intent;
+      return Promise.resolve(intent);
     }
-    return null;
+    return Promise.resolve(null);
   }
 
-  async markValidated(inviteeId: string, communityChatId: string) {
+  markValidated(inviteeId: string, communityChatId: string): Promise<void> {
     const intentKey = `${inviteeId}:${communityChatId}`;
     const intent = this.memoryIntents.get(intentKey);
     if (intent) {
       intent.status = 'VALIDATED';
     }
+    return Promise.resolve();
   }
 
-  async markRevoked(inviteeId: string, communityChatId: string) {
+  markRevoked(inviteeId: string, communityChatId: string): Promise<void> {
     const intentKey = `${inviteeId}:${communityChatId}`;
     const intent = this.memoryIntents.get(intentKey);
     if (intent) {
       intent.status = 'REVOKED';
     }
+    return Promise.resolve();
   }
 }

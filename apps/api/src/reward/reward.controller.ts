@@ -13,7 +13,10 @@ export class RewardController {
 
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard)
-  async updateStatus(@Param('id') id: string, @Body('status') status: RewardItem['status']) {
+  async updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: RewardItem['status'],
+  ) {
     return this.rewardService.updateStatus(id, status);
   }
 }

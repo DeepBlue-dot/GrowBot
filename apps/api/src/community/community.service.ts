@@ -36,15 +36,17 @@ export class CommunityService {
     },
   ];
 
-  async findByWorkspace(workspaceId: string): Promise<CommunityItem[]> {
-    return this.mockCommunities.filter((c) => c.workspaceId === workspaceId);
+  findByWorkspace(workspaceId: string): Promise<CommunityItem[]> {
+    return Promise.resolve(
+      this.mockCommunities.filter((c) => c.workspaceId === workspaceId),
+    );
   }
 
-  async findOne(id: string): Promise<CommunityItem> {
+  findOne(id: string): Promise<CommunityItem> {
     const community = this.mockCommunities.find((c) => c.id === id);
     if (!community) {
       throw new NotFoundException(`Community ${id} not found`);
     }
-    return community;
+    return Promise.resolve(community);
   }
 }

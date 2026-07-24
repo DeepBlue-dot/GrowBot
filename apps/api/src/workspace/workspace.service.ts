@@ -10,6 +10,16 @@ export interface WorkspaceItem {
   communitiesCount: number;
 }
 
+interface DBWorkspaceRecord {
+  id: string;
+  name: string;
+  slug: string;
+  plan: 'FREE' | 'PRO' | 'ENTERPRISE';
+  _count: {
+    communities: number;
+  };
+}
+
 @Injectable()
 export class WorkspaceService {
   constructor(private readonly prisma: PrismaService) {}
@@ -35,20 +45,35 @@ export class WorkspaceService {
 
   async findAll(ownerId: string): Promise<WorkspaceItem[]> {
     try {
-      const dbWorkspaces = await (this.prisma as any).workspace?.findMany({
-        where: { ownerId },
-        include: { _count: { select: { communities: true } } },
-      });
+      const workspaceDelegate = (
+        this.prisma as unknown as {
+          workspace?: {
+            findMany: (args: unknown) => Promise<DBWorkspaceRecord[]>;
+          };
+        }
+      ).workspace;
 
-      if (dbWorkspaces && dbWorkspaces.length > 0) {
-        return dbWorkspaces.map((w) => ({
-          id: w.id,
-          name: w.name,
-          slug: w.slug,
-          plan: w.plan,
-          memberLimit: w.plan === 'PRO' ? 10000 : w.plan === 'ENTERPRISE' ? 100000 : 1000,
-          communitiesCount: w._count.communities,
-        }));
+      if (workspaceDelegate?.findMany) {
+        const dbWorkspaces = await workspaceDelegate.findMany({
+          where: { ownerId },
+          include: { _count: { select: { communities: true } } },
+        });
+
+        if (dbWorkspaces && dbWorkspaces.length > 0) {
+          return dbWorkspaces.map((w) => ({
+            id: w.id,
+            name: w.name,
+            slug: w.slug,
+            plan: w.plan,
+            memberLimit:
+              w.plan === 'PRO'
+                ? 10000
+                : w.plan === 'ENTERPRISE'
+                  ? 100000
+                  : 1000,
+            communitiesCount: w._count.communities,
+          }));
+        }
       }
     } catch {
       // Fallback if DB is offline
@@ -57,15 +82,19 @@ export class WorkspaceService {
     return this.mockWorkspaces;
   }
 
-  async findOne(id: string): Promise<WorkspaceItem> {
+  findOne(id: string): Promise<WorkspaceItem> {
     const ws = this.mockWorkspaces.find((w) => w.id === id);
     if (!ws) {
       throw new NotFoundException(`Workspace ${id} not found`);
     }
-    return ws;
+    return Promise.resolve(ws);
   }
 
-  async create(data: { name: string; slug: string; plan?: 'FREE' | 'PRO' | 'ENTERPRISE' }): Promise<WorkspaceItem> {
+  create(data: {
+    name: string;
+    slug: string;
+    plan?: 'FREE' | 'PRO' | 'ENTERPRISE';
+  }): Promise<WorkspaceItem> {
     const created: WorkspaceItem = {
       id: `ws-${Date.now()}`,
       name: data.name,
@@ -75,6 +104,6 @@ export class WorkspaceService {
       communitiesCount: 0,
     };
     this.mockWorkspaces.push(created);
-    return created;
+    return Promise.resolve(created);
   }
 }

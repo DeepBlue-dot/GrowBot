@@ -24,7 +24,9 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
-  logger.log(`🚀 GrowBot NestJS API & Bot Server listening on port ${port} (/api)`);
+  logger.log(
+    `🚀 GrowBot NestJS API & Bot Server listening on port ${port} (/api)`,
+  );
 }
 
-bootstrap();
+void bootstrap();

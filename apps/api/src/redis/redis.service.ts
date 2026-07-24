@@ -5,25 +5,31 @@ export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private store = new Map<string, { value: string; expiresAt: number }>();
 
-  async setKey(key: string, value: string, ttlSeconds: number = 86400): Promise<void> {
+  setKey(
+    key: string,
+    value: string,
+    ttlSeconds: number = 86400,
+  ): Promise<void> {
     const expiresAt = Date.now() + ttlSeconds * 1000;
     this.store.set(key, { value, expiresAt });
     this.logger.debug(`[Redis Cache] Set key ${key} with TTL ${ttlSeconds}s`);
+    return Promise.resolve();
   }
 
-  async getKey(key: string): Promise<string | null> {
+  getKey(key: string): Promise<string | null> {
     const item = this.store.get(key);
-    if (!item) return null;
+    if (!item) return Promise.resolve(null);
     if (Date.now() > item.expiresAt) {
       this.store.delete(key);
-      return null;
+      return Promise.resolve(null);
     }
-    return item.value;
+    return Promise.resolve(item.value);
   }
 
-  async deleteKey(key: string): Promise<void> {
+  deleteKey(key: string): Promise<void> {
     this.store.delete(key);
     this.logger.debug(`[Redis Cache] Deleted key ${key}`);
+    return Promise.resolve();
   }
 
   onModuleDestroy() {

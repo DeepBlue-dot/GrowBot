@@ -19,7 +19,14 @@ export class WorkspaceController {
   }
 
   @Post()
-  async create(@Body() body: { name: string; slug: string; plan?: 'FREE' | 'PRO' | 'ENTERPRISE' }) {
+  async create(
+    @Body()
+    body: {
+      name: string;
+      slug: string;
+      plan?: 'FREE' | 'PRO' | 'ENTERPRISE';
+    },
+  ) {
     return this.workspaceService.create(body);
   }
 }

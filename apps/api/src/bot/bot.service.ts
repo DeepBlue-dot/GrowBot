@@ -1,12 +1,18 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard } from 'grammy';
+import { Update, ChatMemberUpdated } from 'grammy/types';
 import { ReferralService } from '../referral/referral.service';
 
 @Injectable()
 export class BotService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotService.name);
-  private bot: Bot;
+  private bot!: Bot;
 
   constructor(
     private readonly configService: ConfigService,
@@ -38,18 +44,25 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         this.bot
           .start({
             drop_pending_updates: true,
-            allowed_updates: ['message', 'chat_member', 'my_chat_member', 'callback_query'],
+            allowed_updates: [
+              'message',
+              'chat_member',
+              'my_chat_member',
+              'callback_query',
+            ],
             onStart: (botInfo) => {
               this.logger.log(
                 `⚡ Long Polling Bot SUCCESSFULLY ACTIVE: @${botInfo.username} (ID: ${botInfo.id})`,
               );
             },
           })
-          .catch((err) => {
-            this.logger.error(`❌ Long Polling Runner Error: ${err?.message || err}`);
+          .catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            this.logger.error(`❌ Long Polling Runner Error: ${msg}`);
           });
-      } catch (err: any) {
-        this.logger.warn(`Failed to connect Long Polling: ${err?.message || err}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to connect Long Polling: ${msg}`);
       }
     } else {
       const webhookUrl =
@@ -60,14 +73,19 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42';
 
       if (webhookUrl) {
-        this.logger.log(`🚀 Registering Production Telegram Webhook: ${webhookUrl}`);
+        this.logger.log(
+          `🚀 Registering Production Telegram Webhook: ${webhookUrl}`,
+        );
         try {
           await this.bot.api.setWebhook(webhookUrl, { secret_token: secret });
-        } catch (err: any) {
-          this.logger.warn(`Failed to register Webhook URL: ${err?.message || err}`);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.warn(`Failed to register Webhook URL: ${msg}`);
         }
       } else {
-        this.logger.log('ℹ️ Webhook Mode active. Awaiting HTTP POST /api/telegram/webhook updates.');
+        this.logger.log(
+          'ℹ️ Webhook Mode active. Awaiting HTTP POST /api/telegram/webhook updates.',
+        );
       }
     }
   }
@@ -86,7 +104,8 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     // Command: /start
     this.bot.command('start', async (ctx) => {
-      this.logger.log(`📩 Received /start command from user ${ctx.from?.username || ctx.from?.id}`);
+      const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
+      this.logger.log(`📩 Received /start command from user ${username}`);
       const startParam = ctx.match; // e.g. ref_CODE
       const miniAppUrl =
         this.configService.get<string>('MINI_APP_URL') ||
@@ -108,7 +127,8 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     // Command: /help
     this.bot.command('help', async (ctx) => {
-      this.logger.log(`📩 Received /help command from user ${ctx.from?.username || ctx.from?.id}`);
+      const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
+      this.logger.log(`📩 Received /help command from user ${username}`);
       await ctx.reply(
         `💡 **GrowBot Command Reference:**\n\n` +
           `/start - Open Mini App and get referral link\n` +
@@ -120,7 +140,8 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     // Command: /stats
     this.bot.command('stats', async (ctx) => {
-      this.logger.log(`📩 Received /stats command from user ${ctx.from?.username || ctx.from?.id}`);
+      const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
+      this.logger.log(`📩 Received /stats command from user ${username}`);
       await ctx.reply(
         `📊 **Your Referral Metrics:**\n\n` +
           `• Verified Referrals: **5**\n` +
@@ -147,19 +168,23 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
     return (
       secretHeader === expectedSecret ||
-      secretHeader === 'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42' ||
+      secretHeader ===
+        'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42' ||
       secretHeader === 'growbot_secret_token_123'
     );
   }
 
-  async processUpdate(update: any) {
-    this.logger.log(`Received Telegram Webhook Update [ID: ${update.update_id}]`);
+  async processUpdate(update: Update) {
+    this.logger.log(
+      `Received Telegram Webhook Update [ID: ${update.update_id}]`,
+    );
 
     if (this.bot) {
       try {
         await this.bot.handleUpdate(update);
-      } catch (err: any) {
-        this.logger.error(`Error handling update with grammY: ${err?.message || err}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Error handling update with grammY: ${msg}`);
       }
     }
 
@@ -170,7 +195,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     return { status: 'ok', processed: true };
   }
 
-  private async handleChatMemberUpdate(chatMemberUpdate: any) {
+  private async handleChatMemberUpdate(chatMemberUpdate: ChatMemberUpdated) {
     const chatId = String(chatMemberUpdate.chat.id);
     const user = chatMemberUpdate.new_chat_member.user;
     const inviteeId = String(user.id);
@@ -182,7 +207,10 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     if (newStatus === 'member') {
       // Step 5: Check PostgreSQL intent via ReferralService
-      const pendingIntent = await this.referralService.findPendingIntent(inviteeId, chatId);
+      const pendingIntent = await this.referralService.findPendingIntent(
+        inviteeId,
+        chatId,
+      );
 
       if (pendingIntent) {
         this.logger.log(
@@ -212,7 +240,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     if (this.bot) {
       try {
         await this.bot.stop();
-      } catch (err) {
+      } catch {
         // Ignore stop error on shutdown
       }
     }
