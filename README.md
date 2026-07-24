@@ -96,18 +96,28 @@ For the complete schema definition and Prisma configuration, see **[assets/db-de
 ## 📂 Repository Structure
 
 ```
-├── assets/
+├── apps/
+│   ├── api/            # Backend API (NestJS), Telegram Bot & Redis Attribution Engine
+│   └── web/            # Web Dashboard (Next.js) & Telegram Mini App Frontend
+├── packages/
+│   ├── database/       # Prisma ORM schema, PostgreSQL migrations & Redis client
+│   └── typescript-config# Shared TypeScript configurations
+├── doc/
 │   ├── phase-1.md      # Product Vision, Scope & Phase 1 Specifications
-│   └── db-design.md    # Detailed Database Architecture & Prisma Schema Spec
-└── README.md           # Project Overview & System Documentation
+│   ├── db-design.md    # Detailed Database Architecture & Prisma Schema Spec
+│   ├── plan.md         # Master Implementation Roadmap (Phases 1 - 7)
+│   └── git-guildeline.md # Git Branching Strategy & Developer Workflow Guidelines
+└── README.md           # Project Overview & System Architecture Documentation
 ```
 
 ---
 
 ## 📚 Documentation
 
-- 📋 **[Phase 1 Scope & Specification](assets/phase-1.md)**: Product goals, functional requirements, non-functional requirements, and MVP scope.
-- 🗄 **[Database Specification & Prisma Schema](assets/db-design.md)**: Entity Relationship Diagram (ERD), full Prisma schema code, indexing strategies, and Redis caching architecture.
+- 📋 **[Phase 1 Scope & Specification](doc/phase-1.md)**: Product goals, functional requirements, non-functional requirements, and MVP scope.
+- 🗄 **[Database Specification & Prisma Schema](doc/db-design.md)**: Entity Relationship Diagram (ERD), full Prisma schema code, indexing strategies, and Redis caching architecture.
+- 🗺 **[Master Execution Plan](doc/plan.md)**: Master implementation roadmap broken down by phase and module.
+- 🌿 **[Git Branching & Workflow Guidelines](doc/git-guildeline.md)**: Monorepo Git setup, branch hierarchy, conventional commits, and developer cheat sheet.
 
 ---
 
