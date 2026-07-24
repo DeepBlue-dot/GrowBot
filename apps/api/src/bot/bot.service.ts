@@ -86,28 +86,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn(`Failed to connect Long Polling: ${msg}`);
       }
     } else {
-      const webhookUrl =
-        this.configService.get<string>('TELEGRAM_WEBHOOK_URL') ||
-        'https://grow-hekggrmnr-deepblue-dots-projects.vercel.app/api/telegram/webhook';
-      const secret =
-        this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET') ||
-        'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42';
-
-      if (webhookUrl) {
-        this.logger.log(
-          `🚀 Registering Production Telegram Webhook: ${webhookUrl}`,
-        );
-        try {
-          await this.bot.api.setWebhook(webhookUrl, { secret_token: secret });
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          this.logger.warn(`Failed to register Webhook URL: ${msg}`);
-        }
-      } else {
-        this.logger.log(
-          'ℹ️ Webhook Mode active. Awaiting HTTP POST /api/telegram/webhook updates.',
-        );
-      }
+      this.logger.log(
+        'ℹ️ Webhook Mode active. Ready to process HTTP POST /api/telegram/webhook updates.',
+      );
     }
   }
 
