@@ -4,18 +4,14 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "apps/api/dist/**",
+      "includeFiles": "apps/api/dist/**,apps/web/dist/**",
       "maxDuration": 15
     }
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/(.*)",
       "destination": "/api/index.ts"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
     }
   ]
 }
