@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard } from 'grammy';
-import { Update, ChatMemberUpdated } from 'grammy/types';
+import type { Update, ChatMemberUpdated } from 'grammy/types';
 import { ReferralService } from '../referral/referral.service';
 
 @Injectable()
