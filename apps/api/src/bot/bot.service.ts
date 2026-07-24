@@ -213,6 +213,14 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     );
 
     if (this.bot) {
+      if (!this.bot.isInited()) {
+        try {
+          await this.bot.init();
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.warn(`Failed bot.init() in processUpdate: ${msg}`);
+        }
+      }
       try {
         await this.bot.handleUpdate(
           update as unknown as Parameters<Bot['handleUpdate']>[0],
