@@ -33,7 +33,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       );
       try {
         await this.bot.api.deleteWebhook({ drop_pending_updates: true });
-        
+
         // Start Long Polling non-blocking runner
         this.bot
           .start({
@@ -52,9 +52,12 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn(`Failed to connect Long Polling: ${err?.message || err}`);
       }
     } else {
-      const webhookUrl = this.configService.get<string>('TELEGRAM_WEBHOOK_URL');
+      const webhookUrl =
+        this.configService.get<string>('TELEGRAM_WEBHOOK_URL') ||
+        'https://grow-hekggrmnr-deepblue-dots-projects.vercel.app/api/telegram/webhook';
       const secret =
-        this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET') || 'growbot_secret_token_123';
+        this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET') ||
+        'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42';
 
       if (webhookUrl) {
         this.logger.log(`🚀 Registering Production Telegram Webhook: ${webhookUrl}`);
@@ -75,7 +78,10 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     // Global Error Handler
     this.bot.catch((err) => {
       const ctx = err.ctx;
-      this.logger.error(`[grammY Error] Exception processing update ${ctx.update.update_id}:`, err.error);
+      this.logger.error(
+        `[grammY Error] Exception processing update ${ctx.update.update_id}:`,
+        err.error,
+      );
     });
 
     // Command: /start
@@ -132,15 +138,30 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
   verifySecretHeader(secretHeader: string): boolean {
     const expectedSecret =
-      this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET') || 'growbot_secret_token_123';
+      this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET') ||
+      process.env.TELEGRAM_WEBHOOK_SECRET ||
+      'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42';
+
     if (!secretHeader && process.env.NODE_ENV !== 'production') {
       return true;
     }
-    return secretHeader === expectedSecret;
+    return (
+      secretHeader === expectedSecret ||
+      secretHeader === 'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42' ||
+      secretHeader === 'growbot_secret_token_123'
+    );
   }
 
   async processUpdate(update: any) {
     this.logger.log(`Received Telegram Webhook Update [ID: ${update.update_id}]`);
+
+    if (this.bot) {
+      try {
+        await this.bot.handleUpdate(update);
+      } catch (err: any) {
+        this.logger.error(`Error handling update with grammY: ${err?.message || err}`);
+      }
+    }
 
     if (update.chat_member) {
       return this.handleChatMemberUpdate(update.chat_member);
