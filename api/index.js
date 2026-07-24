@@ -1,21 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const express = require('express');
-
-const server = express();
-let bootstrapPromise = null;
+let serverInstance = null;
 
 async function bootstrap() {
-  // Import reflect-metadata before anything NestJS
   require('reflect-metadata');
 
   const { NestFactory } = require('@nestjs/core');
   const { ValidationPipe } = require('@nestjs/common');
-  const { ExpressAdapter } = require('@nestjs/platform-express');
-
-  // Import the pre-compiled NestJS AppModule from nest build output
   const { AppModule } = require('../apps/api/dist/app.module');
 
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
+  const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
 
@@ -30,22 +23,22 @@ async function bootstrap() {
   );
 
   await app.init();
+  return app.getHttpAdapter().getInstance();
 }
 
 module.exports = async function handler(req, res) {
   try {
-    if (!bootstrapPromise) {
-      bootstrapPromise = bootstrap();
+    if (!serverInstance) {
+      serverInstance = await bootstrap();
     }
-    await bootstrapPromise;
-    return server(req, res);
+    return serverInstance(req, res);
   } catch (err) {
     console.error('Vercel NestJS Bootstrap Error:', err);
-    bootstrapPromise = null; // Reset so next invocation retries
+    serverInstance = null;
     res.status(500).json({
       error: 'Vercel Serverless Function Bootstrap Failed',
-      details: err.message || String(err),
-      stack: err.stack,
+      details: err ? err.message || String(err) : 'Unknown error',
+      stack: err ? err.stack : null,
     });
   }
 };
