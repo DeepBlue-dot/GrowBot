@@ -8,6 +8,7 @@ build/
 out/
 .output/
 .turbo/
+packages/database/src/generated/
 
 #AI
 .agents/
