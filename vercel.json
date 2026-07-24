@@ -1,17 +1,20 @@
 {
+  "version": 2,
   "buildCommand": "pnpm db:generate && pnpm build",
-  "outputDirectory": "apps/web/dist",
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "functions": {
-    "api/index.ts": {
-      "includeFiles": "apps/api/dist/**,apps/web/dist/**",
-      "maxDuration": 15
-    }
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/api/index.ts"
+      "src": "api/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["apps/api/dist/**", "apps/web/dist/**"]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.ts"
     }
   ]
 }
