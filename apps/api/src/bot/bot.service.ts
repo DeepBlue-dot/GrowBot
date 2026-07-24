@@ -180,7 +180,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
       const miniAppUrl =
         this.configService.get<string>('MINI_APP_URL') ||
-        'https://grow-hekggrmnr-deepblue-dots-projects.vercel.app/miniapp';
+        'https://grow-bot-brown.vercel.app/miniapp';
 
       const keyboard = new InlineKeyboard().webApp(
         '🚀 Open Mini App',
@@ -243,7 +243,13 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (update.chat_member) {
-      return this.handleChatMemberUpdate(update.chat_member);
+      try {
+        return await this.handleChatMemberUpdate(update.chat_member);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Error handling chat_member update: ${msg}`);
+        return { status: 'error', error: msg };
+      }
     }
 
     return { status: 'ok', processed: true };
