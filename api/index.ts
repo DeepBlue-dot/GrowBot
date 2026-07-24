@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import express, { Request, Response } from 'express';
-import { AppModule } from '../apps/api/src/app.module.js';
+import { AppModule } from '../apps/api/src/app.module';
 
 const server = express();
 let bootstrapPromise: Promise<void> | null = null;
