@@ -1,0 +1,16 @@
+{
+  "name": "growbot-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "db:generate": "pnpm --filter @growbot/database generate",
+    "db:push": "pnpm --filter @growbot/database push"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
