@@ -2,10 +2,17 @@
   "buildCommand": "pnpm db:generate && pnpm build",
   "outputDirectory": "apps/web/dist",
   "installCommand": "pnpm install --no-frozen-lockfile",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "apps/api/src/**",
+      "memory": 1024,
+      "maxDuration": 15
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "/api/index.ts"
     },
     {
       "source": "/((?!api/).*)",
