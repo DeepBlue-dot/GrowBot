@@ -116,13 +116,13 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         .row()
         .url('📢 Join Community', 'https://t.me/GrowBotOfficial');
 
-      let text = `👋 **Welcome to GrowBot!**\n\nGrow your Telegram community with automated referral campaigns, zero rate-limits, and PostgreSQL attribution.`;
+      let text = `👋 <b>Welcome to GrowBot!</b>\n\nGrow your Telegram community with automated referral campaigns, zero rate-limits, and PostgreSQL attribution.`;
 
       if (startParam) {
-        text += `\n\n✨ Inviter Referral Code: \`${startParam}\``;
+        text += `\n\n✨ Inviter Referral Code: <code>${startParam}</code>`;
       }
 
-      await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'Markdown' });
+      await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' });
     });
 
     // Command: /help
@@ -130,11 +130,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
       this.logger.log(`📩 Received /help command from user ${username}`);
       await ctx.reply(
-        `💡 **GrowBot Command Reference:**\n\n` +
-          `/start - Open Mini App and get referral link\n` +
-          `/stats - View referral invites performance\n` +
-          `/help - Display bot usage guide`,
-        { parse_mode: 'Markdown' },
+        `💡 <b>GrowBot Command Reference:</b>\n\n` +
+          `• <b>/start</b> - Open Mini App and get referral link\n` +
+          `• <b>/stats</b> - View referral invites performance\n` +
+          `• <b>/help</b> - Display bot usage guide`,
+        { parse_mode: 'HTML' },
       );
     });
 
@@ -143,12 +143,43 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
       this.logger.log(`📩 Received /stats command from user ${username}`);
       await ctx.reply(
-        `📊 **Your Referral Metrics:**\n\n` +
-          `• Verified Referrals: **5**\n` +
-          `• Pending Intents: **1**\n` +
-          `• Unlocked Rewards: **VIP Pass**`,
-        { parse_mode: 'Markdown' },
+        `📊 <b>Your Referral Metrics:</b>\n\n` +
+          `• Verified Referrals: <b>5</b>\n` +
+          `• Pending Intents: <b>1</b>\n` +
+          `• Unlocked Rewards: <b>VIP Pass</b>`,
+        { parse_mode: 'HTML' },
       );
+    });
+
+    // Catch-all text message handler
+    this.bot.on('message:text', async (ctx) => {
+      const text = ctx.message.text;
+      const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
+      this.logger.log(`📩 Received text message "${text}" from ${username}`);
+
+      const miniAppUrl =
+        this.configService.get<string>('MINI_APP_URL') ||
+        'https://grow-hekggrmnr-deepblue-dots-projects.vercel.app/miniapp';
+
+      const keyboard = new InlineKeyboard().webApp(
+        '🚀 Open Mini App',
+        miniAppUrl,
+      );
+
+      if (text.startsWith('/')) {
+        const cmd = text.split(' ')[0];
+        if (!['/start', '/help', '/stats'].includes(cmd)) {
+          await ctx.reply(
+            `🤖 <b>GrowBot Helper</b>\n\nUnknown command <code>${cmd}</code>.\n\nAvailable commands:\n• /start\n• /help\n• /stats`,
+            { reply_markup: keyboard, parse_mode: 'HTML' },
+          );
+        }
+      } else {
+        await ctx.reply(
+          `👋 Hello! I am <b>GrowBot</b>.\n\nClick below to launch the Mini App and track your community growth!`,
+          { reply_markup: keyboard, parse_mode: 'HTML' },
+        );
+      }
     });
 
     // Listener: chat_member update
