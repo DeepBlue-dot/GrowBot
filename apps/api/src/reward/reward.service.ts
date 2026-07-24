@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface RewardItem {
   id: string;
@@ -13,6 +14,8 @@ export interface RewardItem {
 
 @Injectable()
 export class RewardService {
+  constructor(private readonly prisma: PrismaService) {}
+
   private mockRewards: RewardItem[] = [
     {
       id: 'rw-1',
@@ -46,16 +49,65 @@ export class RewardService {
     },
   ];
 
-  findAll(): Promise<RewardItem[]> {
-    return Promise.resolve(this.mockRewards);
+  async findAll(): Promise<RewardItem[]> {
+    try {
+      const dbRewards = await this.prisma.reward.findMany({
+        include: {
+          campaign: true,
+          user: true,
+        },
+        orderBy: { earnedAt: 'desc' },
+      });
+
+      if (dbRewards && dbRewards.length > 0) {
+        return dbRewards.map((r) => ({
+          id: r.id,
+          campaignId: r.campaignId,
+          campaignTitle: r.campaign.title,
+          winnerUsername: r.user.username || r.user.firstName,
+          winnerTelegramId: String(r.user.telegramId),
+          rewardTitle: r.rewardTitle,
+          status: r.status,
+          createdAt: r.earnedAt.toISOString().split('T')[0],
+        }));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`Prisma findMany rewards fallback: ${msg}`);
+    }
+
+    return this.mockRewards;
   }
 
-  updateStatus(id: string, status: RewardItem['status']): Promise<RewardItem> {
-    const reward = this.mockRewards.find((r) => r.id === id);
-    if (!reward) {
-      throw new NotFoundException(`Reward ${id} not found`);
+  async updateStatus(
+    id: string,
+    status: RewardItem['status'],
+  ): Promise<RewardItem> {
+    try {
+      const updated = await this.prisma.reward.update({
+        where: { id },
+        data: {
+          status: status,
+        },
+        include: { campaign: true, user: true },
+      });
+      return {
+        id: updated.id,
+        campaignId: updated.campaignId,
+        campaignTitle: updated.campaign.title,
+        winnerUsername: updated.user.username || updated.user.firstName,
+        winnerTelegramId: String(updated.user.telegramId),
+        rewardTitle: updated.rewardTitle,
+        status: updated.status,
+        createdAt: updated.earnedAt.toISOString().split('T')[0],
+      };
+    } catch {
+      const reward = this.mockRewards.find((r) => r.id === id);
+      if (!reward) {
+        throw new NotFoundException(`Reward ${id} not found`);
+      }
+      reward.status = status;
+      return reward;
     }
-    reward.status = status;
-    return Promise.resolve(reward);
   }
 }

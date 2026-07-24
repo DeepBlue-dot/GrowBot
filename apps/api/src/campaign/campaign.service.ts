@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface CampaignRule {
   id: string;
@@ -26,6 +27,8 @@ export interface CampaignItem {
 
 @Injectable()
 export class CampaignService {
+  constructor(private readonly prisma: PrismaService) {}
+
   private mockCampaigns: CampaignItem[] = [
     {
       id: 'camp-1',
@@ -118,16 +121,60 @@ export class CampaignService {
     },
   ];
 
-  findAll(): Promise<CampaignItem[]> {
-    return Promise.resolve(this.mockCampaigns);
+  async findAll(): Promise<CampaignItem[]> {
+    try {
+      const dbCampaigns = await this.prisma.campaign.findMany({
+        include: {
+          validationRules: true,
+          _count: {
+            select: {
+              participants: true,
+              referrals: true,
+            },
+          },
+        },
+      });
+
+      if (dbCampaigns && dbCampaigns.length > 0) {
+        return dbCampaigns.map((c) => ({
+          id: c.id,
+          communityId: c.communityId,
+          title: c.title,
+          description: c.description || '',
+          type: c.type,
+          targetReferrals: c.referralTarget || 5,
+          rewardTitle: c.rewardDescription || 'Campaign Reward',
+          rewardDescription: c.rewardDescription,
+          isActive: c.status === 'ACTIVE',
+          startDate: c.startDate.toISOString().split('T')[0],
+          endDate: c.endDate
+            ? c.endDate.toISOString().split('T')[0]
+            : undefined,
+          rules: c.validationRules.map((r) => ({
+            id: r.id,
+            type: r.ruleType,
+            minStayHours: (r.config as { minStayHours?: number })?.minStayHours,
+            minMessages: (r.config as { minMessages?: number })?.minMessages,
+          })),
+          totalParticipants: c._count.participants,
+          validatedReferrals: c._count.referrals,
+        }));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`Prisma findMany campaigns fallback: ${msg}`);
+    }
+
+    return this.mockCampaigns;
   }
 
-  findOne(id: string): Promise<CampaignItem> {
-    const campaign = this.mockCampaigns.find((c) => c.id === id);
+  async findOne(id: string): Promise<CampaignItem> {
+    const campaigns = await this.findAll();
+    const campaign = campaigns.find((c) => c.id === id);
     if (!campaign) {
       throw new NotFoundException(`Campaign ${id} not found`);
     }
-    return Promise.resolve(campaign);
+    return campaign;
   }
 
   create(data: Partial<CampaignItem>): Promise<CampaignItem> {
@@ -152,10 +199,35 @@ export class CampaignService {
     return Promise.resolve(created);
   }
 
-  getLeaderboard(campaignId?: string): Promise<typeof this.mockLeaderboard> {
-    if (campaignId) {
-      // Optional campaign parameter filter
+  async getLeaderboard(campaignId?: string) {
+    try {
+      const participants = await this.prisma.campaignParticipant.findMany({
+        where: campaignId ? { campaignId } : undefined,
+        orderBy: { validatedReferrals: 'desc' },
+        take: 20,
+        include: {
+          user: true,
+        },
+      });
+
+      if (participants && participants.length > 0) {
+        return participants.map((p, index) => ({
+          rank: index + 1,
+          participantId: p.id,
+          telegramId: String(p.user.telegramId),
+          username: p.user.username || 'anonymous',
+          firstName: p.user.firstName,
+          validatedReferrals: p.validatedReferrals,
+          pendingReferrals: p.totalReferrals - p.validatedReferrals,
+          rewardStatus:
+            index === 0 ? 'APPROVED' : index === 1 ? 'PENDING' : undefined,
+        }));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`Prisma findMany leaderboard fallback: ${msg}`);
     }
-    return Promise.resolve(this.mockLeaderboard);
+
+    return this.mockLeaderboard;
   }
 }

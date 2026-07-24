@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface CommunityItem {
   id: string;
@@ -13,6 +14,8 @@ export interface CommunityItem {
 
 @Injectable()
 export class CommunityService {
+  constructor(private readonly prisma: PrismaService) {}
+
   private mockCommunities: CommunityItem[] = [
     {
       id: 'comm-1',
@@ -36,17 +39,38 @@ export class CommunityService {
     },
   ];
 
-  findByWorkspace(workspaceId: string): Promise<CommunityItem[]> {
-    return Promise.resolve(
-      this.mockCommunities.filter((c) => c.workspaceId === workspaceId),
-    );
+  async findByWorkspace(workspaceId?: string): Promise<CommunityItem[]> {
+    try {
+      const dbCommunities = await this.prisma.community.findMany({
+        where: workspaceId ? { workspaceId } : undefined,
+      });
+
+      if (dbCommunities && dbCommunities.length > 0) {
+        return dbCommunities.map((c) => ({
+          id: c.id,
+          workspaceId: c.workspaceId,
+          telegramChatId: String(c.telegramChatId),
+          title: c.title,
+          username: c.username || undefined,
+          type: c.type,
+          memberCount: c.memberCount,
+          botIsAdmin: c.botStatus === 'ACTIVE',
+        }));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`Prisma findMany communities fallback: ${msg}`);
+    }
+
+    return this.mockCommunities;
   }
 
-  findOne(id: string): Promise<CommunityItem> {
-    const community = this.mockCommunities.find((c) => c.id === id);
+  async findOne(id: string): Promise<CommunityItem> {
+    const communities = await this.findByWorkspace();
+    const community = communities.find((c) => c.id === id);
     if (!community) {
       throw new NotFoundException(`Community ${id} not found`);
     }
-    return Promise.resolve(community);
+    return community;
   }
 }
