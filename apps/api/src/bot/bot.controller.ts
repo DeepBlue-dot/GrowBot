@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Headers,
@@ -14,6 +15,11 @@ export class BotController {
   private readonly logger = new Logger(BotController.name);
 
   constructor(private readonly botService: BotService) {}
+
+  @Get('webhook')
+  getWebhookStatus() {
+    return { ok: true, message: 'Telegram Webhook Endpoint Active' };
+  }
 
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
