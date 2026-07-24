@@ -1,13 +1,329 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
-generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-}
-
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------------------------------
+// Enums
+// --------------------------------------
+
+enum WorkspacePlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum CommunityType {
+  GROUP
+  SUPERGROUP
+  CHANNEL
+}
+
+enum BotStatus {
+  ACTIVE
+  INACTIVE
+  KICKED
+  NO_ADMIN_RIGHTS
+}
+
+enum CampaignType {
+  MILESTONE    // Invite X friends
+  LEADERBOARD  // Top inviter competition
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum ValidationRule {
+  IMMEDIATE
+  TIME_BOUND
+  MESSAGE_COUNT
+}
+
+enum MemberRole {
+  MEMBER
+  ADMINISTRATOR
+  CREATOR
+}
+
+enum MemberStatus {
+  ACTIVE
+  LEFT
+  KICKED
+  BANNED
+}
+
+enum ReferralStatus {
+  PENDING_JOIN
+  PENDING_VALIDATION
+  VALIDATED
+  INVALIDATED
+  REVOKED
+  EXPIRED
+}
+
+enum RewardStatus {
+  PENDING
+  APPROVED
+  DELIVERED
+  REJECTED
+}
+
+// --------------------------------------
+// Models
+// --------------------------------------
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  telegramId   BigInt   @unique @map("telegram_id")
+  username     String?  @db.VarChar(255)
+  firstName    String   @map("first_name") @db.VarChar(255)
+  lastName     String?  @map("last_name") @db.VarChar(255)
+  photoUrl     String?  @map("photo_url") @db.Text
+  isAdmin      Boolean  @default(false) @map("is_admin")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  ownedWorkspaces        Workspace[]            @relation("WorkspaceOwner")
+  createdCampaigns       Campaign[]             @relation("CampaignCreator")
+  communityMemberships   CommunityMember[]
+  campaignParticipations CampaignParticipant[]
+  sentReferrals          Referral[]             @relation("Referrer")
+  receivedReferrals      Referral[]             @relation("Invitee")
+  rewards                Reward[]
+  campaignEvents         CampaignEvent[]
+
+  @@map("users")
+  @@index([telegramId])
+}
+
+model Workspace {
+  id             String        @id @default(uuid()) @db.Uuid
+  ownerId        String        @map("owner_id") @db.Uuid
+  name           String        @db.VarChar(255)
+  slug           String        @unique @db.VarChar(255)
+  plan           WorkspacePlan @default(FREE)
+  maxCommunities Int           @default(3) @map("max_communities")
+  maxCampaigns   Int           @default(5) @map("max_campaigns")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  owner       User        @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  communities Community[]
+
+  @@map("workspaces")
+  @@index([ownerId])
+}
+
+model Community {
+  id             String        @id @default(uuid()) @db.Uuid
+  workspaceId    String        @map("workspace_id") @db.Uuid
+  telegramChatId BigInt        @unique @map("telegram_chat_id")
+  title          String        @db.VarChar(255)
+  username       String?       @db.VarChar(255)
+  type           CommunityType
+  botStatus      BotStatus     @default(ACTIVE) @map("bot_status")
+  memberCount    Int           @default(0) @map("member_count")
+  inviteLink     String?       @map("invite_link") @db.Text
+  settings       Json          @default("{}") @db.JsonB
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaigns   Campaign[]
+  members     CommunityMember[]
+  dailyStats  CommunityDailyStat[]
+  eventLogs   TelegramEventLog[]
+
+  @@map("communities")
+  @@index([workspaceId])
+  @@index([telegramChatId])
+}
+
+model Campaign {
+  id                String         @id @default(uuid()) @db.Uuid
+  communityId       String         @map("community_id") @db.Uuid
+  createdById       String         @map("created_by_id") @db.Uuid
+  title             String         @db.VarChar(255)
+  description       String?        @db.Text
+  type              CampaignType   @default(MILESTONE)
+  referralTarget    Int?           @map("referral_target")
+  rewardDescription String         @map("reward_description") @db.Text
+  startDate         DateTime       @map("start_date") @db.Timestamptz
+  endDate           DateTime?      @map("end_date") @db.Timestamptz
+  status            CampaignStatus @default(DRAFT)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  community       Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy       User                     @relation("CampaignCreator", fields: [createdById], references: [id])
+  validationRules CampaignValidationRule[]
+  participants    CampaignParticipant[]
+  referrals       Referral[]
+  rewards         Reward[]
+  events          CampaignEvent[]
+
+  @@map("campaigns")
+  @@index([communityId])
+  @@index([status])
+}
+
+model CampaignValidationRule {
+  id         String         @id @default(uuid()) @db.Uuid
+  campaignId String         @map("campaign_id") @db.Uuid
+  ruleType   ValidationRule @map("rule_type")
+  config     Json           @default("{}") @db.JsonB
+  isActive   Boolean        @default(true) @map("is_active")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_validation_rules")
+  @@index([campaignId])
+}
+
+model CommunityMember {
+  id            String       @id @default(uuid()) @db.Uuid
+  communityId   String       @map("community_id") @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  role          MemberRole   @default(MEMBER)
+  status        MemberStatus @default(ACTIVE)
+  messageCount  Int          @default(0) @map("message_count")
+  firstJoinedAt DateTime     @default(now()) @map("first_joined_at") @db.Timestamptz
+  joinedAt      DateTime     @default(now()) @map("joined_at") @db.Timestamptz
+  leftAt        DateTime?    @map("left_at") @db.Timestamptz
+  rejoinedCount Int          @default(0) @map("rejoined_count")
+  lastActiveAt  DateTime?    @map("last_active_at") @db.Timestamptz
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@map("community_members")
+  @@index([communityId, status])
+  @@index([userId])
+}
+
+model CampaignParticipant {
+  id                 String   @id @default(uuid()) @db.Uuid
+  campaignId         String   @map("campaign_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  referralCode       String   @unique @map("referral_code") @db.VarChar(64)
+  totalReferrals     Int      @default(0) @map("total_referrals")
+  validatedReferrals Int      @default(0) @map("validated_referrals")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  campaign Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events   CampaignEvent[]
+
+  @@unique([campaignId, userId])
+  @@map("campaign_participants")
+  @@index([campaignId, validatedReferrals(sort: Desc)])
+}
+
+model Referral {
+  id                String         @id @default(uuid()) @db.Uuid
+  campaignId        String         @map("campaign_id") @db.Uuid
+  referrerId        String         @map("referrer_id") @db.Uuid
+  inviteeId         String         @map("invitee_id") @db.Uuid
+  status            ReferralStatus @default(PENDING_JOIN)
+  invalidatedReason String?        @map("invalidated_reason") @db.VarChar(255)
+  intentAt          DateTime       @default(now()) @map("intent_at") @db.Timestamptz
+  joinedAt          DateTime?      @map("joined_at") @db.Timestamptz
+  validatedAt       DateTime?      @map("validated_at") @db.Timestamptz
+  revokedAt         DateTime?      @map("revoked_at") @db.Timestamptz
+
+  campaign Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  referrer User            @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  invitee  User            @relation("Invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  events   CampaignEvent[]
+
+  @@unique([campaignId, inviteeId])
+  @@map("referrals")
+  @@index([campaignId, referrerId])
+  @@index([status])
+}
+
+model CampaignEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  campaignId    String    @map("campaign_id") @db.Uuid
+  participantId String?   @map("participant_id") @db.Uuid
+  userId        String?   @map("user_id") @db.Uuid
+  referralId    String?   @map("referral_id") @db.Uuid
+  eventType     String    @map("event_type") @db.VarChar(64)
+  metadata      Json      @default("{}") @db.JsonB
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  campaign    Campaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  participant CampaignParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  user        User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  referral    Referral?            @relation(fields: [referralId], references: [id], onDelete: SetNull)
+
+  @@map("campaign_events")
+  @@index([campaignId])
+  @@index([participantId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model Reward {
+  id          String       @id @default(uuid()) @db.Uuid
+  campaignId  String       @map("campaign_id") @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  rewardTitle String       @map("reward_title") @db.VarChar(255)
+  status      RewardStatus @default(PENDING)
+  notes       String?      @db.Text
+  earnedAt    DateTime     @default(now()) @map("earned_at") @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("rewards")
+  @@index([campaignId, userId])
+  @@index([status])
+}
+
+model CommunityDailyStat {
+  id                 String   @id @default(uuid()) @db.Uuid
+  communityId        String   @map("community_id") @db.Uuid
+  date               DateTime @db.Date
+  totalMembers       Int      @map("total_members")
+  newJoins           Int      @default(0) @map("new_joins")
+  leaves             Int      @default(0) @map("leaves")
+  totalReferrals     Int      @default(0) @map("total_referrals")
+  validatedReferrals Int      @default(0) @map("validated_referrals")
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, date])
+  @@map("community_daily_stats")
+  @@index([communityId, date(sort: Desc)])
+}
+
+model TelegramEventLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  communityId String?  @map("community_id") @db.Uuid
+  eventType   String   @map("event_type") @db.VarChar(64)
+  payload     Json     @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  community Community? @relation(fields: [communityId], references: [id], onDelete: SetNull)
+
+  @@map("telegram_event_logs")
+  @@index([communityId])
+  @@index([eventType])
+  @@index([createdAt])
 }

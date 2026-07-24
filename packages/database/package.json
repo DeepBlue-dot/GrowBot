@@ -2,16 +2,16 @@
   "name": "@growbot/database",
   "version": "0.0.0",
   "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "scripts": {
     "generate": "prisma generate",
     "push": "prisma db push"
   },
   "dependencies": {
-    "@prisma/client": "^5.14.0"
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
-    "prisma": "^5.14.0"
+    "prisma": "^5.22.0"
   }
 }
