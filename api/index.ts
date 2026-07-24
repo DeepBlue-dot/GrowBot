@@ -33,7 +33,7 @@ export default async function handler(req: Request, res: Response) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.stack || err.message : String(err);
     console.error('Vercel NestJS Bootstrap Error:', msg);
-    res.status(500).json({
+    (res as any).status(500).json({
       error: 'Vercel Serverless Function Bootstrap Failed',
       details: msg,
     });
