@@ -4,10 +4,10 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { AuthService, JwtPayload } from '../auth.service';
 
-interface RequestWithUser extends Request {
+interface RequestWithUser {
+  headers?: Record<string, string | undefined>;
   user?: JwtPayload;
 }
 
@@ -17,7 +17,8 @@ export class JwtAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
-    const authHeader = request.headers.authorization;
+    const headers = request.headers || {};
+    const authHeader = headers.authorization || headers.Authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       // Allow development bypass if token omitted in dev mode
