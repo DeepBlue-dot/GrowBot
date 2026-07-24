@@ -4,8 +4,7 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "apps/api/src/**",
-      "memory": 1024,
+      "includeFiles": "apps/api/dist/**",
       "maxDuration": 15
     }
   },
