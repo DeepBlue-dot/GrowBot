@@ -5,10 +5,12 @@ import express, { Request, Response } from 'express';
 import { AppModule } from '../apps/api/src/app.module';
 
 const server = express();
-let isInitialized = false;
+let bootstrapPromise: Promise<void> | null = null;
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
+    logger: ['error', 'warn', 'log'],
+  });
   app.enableCors({ origin: '*', credentials: true });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
@@ -19,12 +21,21 @@ async function bootstrap() {
     }),
   );
   await app.init();
-  isInitialized = true;
 }
 
 export default async function handler(req: Request, res: Response) {
-  if (!isInitialized) {
-    await bootstrap();
+  try {
+    if (!bootstrapPromise) {
+      bootstrapPromise = bootstrap();
+    }
+    await bootstrapPromise;
+    return server(req, res);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.stack || err.message : String(err);
+    console.error('Vercel NestJS Bootstrap Error:', msg);
+    res.status(500).json({
+      error: 'Vercel Serverless Function Bootstrap Failed',
+      details: msg,
+    });
   }
-  server(req, res);
 }
