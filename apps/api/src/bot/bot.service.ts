@@ -11,30 +11,33 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly referralService: ReferralService,
-  ) {
-    const token =
-      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ||
-      '7890123456:ABCdefGHIjklMNOpqrsTUVwxyz123456';
-    this.bot = new Bot(token);
-    this.setupHandlers();
-  }
+  ) {}
 
   async onModuleInit() {
+    const token =
+      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ||
+      process.env.TELEGRAM_BOT_TOKEN ||
+      '8968966948:AAGXgsBnaMR6XE2rfTZph-uhhrnY7qKTWrQ';
+
+    this.bot = new Bot(token);
+    this.setupHandlers();
+
     const mode =
       this.configService.get<string>('TELEGRAM_BOT_MODE') ||
+      process.env.TELEGRAM_BOT_MODE ||
       (process.env.NODE_ENV === 'production' ? 'webhook' : 'polling');
 
     if (mode === 'polling') {
-      this.logger.log('🤖 Starting Telegram Bot in LOCAL DEVELOPMENT MODE (Long Polling)...');
+      this.logger.log(`🤖 Starting Telegram Dev Bot in LOCAL DEVELOPMENT MODE (Long Polling)... Token: ${token.substring(0, 10)}...`);
       try {
         await this.bot.api.deleteWebhook({ drop_pending_updates: true });
         this.bot.start({
           onStart: (botInfo) => {
-            this.logger.log(`⚡ Long Polling Bot active: @${botInfo.username}`);
+            this.logger.log(`⚡ Long Polling Bot active: @${botInfo.username} (ID: ${botInfo.id})`);
           },
         });
-      } catch (err) {
-        this.logger.warn('Failed to connect Long Polling (Offline or Mock Bot Token). Bot running in passive mode.');
+      } catch (err: any) {
+        this.logger.warn(`Failed to connect Long Polling: ${err?.message || err}`);
       }
     } else {
       const webhookUrl = this.configService.get<string>('TELEGRAM_WEBHOOK_URL');
@@ -45,8 +48,8 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         this.logger.log(`🚀 Registering Production Telegram Webhook: ${webhookUrl}`);
         try {
           await this.bot.api.setWebhook(webhookUrl, { secret_token: secret });
-        } catch (err) {
-          this.logger.warn('Failed to register Webhook URL with Telegram API.');
+        } catch (err: any) {
+          this.logger.warn(`Failed to register Webhook URL: ${err?.message || err}`);
         }
       } else {
         this.logger.log('ℹ️ Webhook Mode active. Awaiting HTTP POST /api/telegram/webhook updates.');
@@ -55,6 +58,8 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private setupHandlers() {
+    if (!this.bot) return;
+
     // Command: /start
     this.bot.command('start', async (ctx) => {
       const startParam = ctx.match; // e.g. ref_CODE
