@@ -52,7 +52,14 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         `🤖 Starting Telegram Dev Bot in LOCAL DEVELOPMENT MODE (Long Polling)... Token: ${token.substring(0, 10)}...`,
       );
       try {
-        await this.bot.api.deleteWebhook({ drop_pending_updates: true });
+        try {
+          await this.bot.api.deleteWebhook({ drop_pending_updates: true });
+        } catch (delErr: unknown) {
+          const msg = delErr instanceof Error ? delErr.message : String(delErr);
+          this.logger.warn(
+            `deleteWebhook failed (continuing long polling): ${msg}`,
+          );
+        }
 
         // Start Long Polling non-blocking runner
         this.bot
