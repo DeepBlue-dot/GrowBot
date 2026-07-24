@@ -2,7 +2,7 @@
   "name": "@growbot/database",
   "version": "0.0.0",
   "private": true,
-  "main": "./src/index.ts",
+  "main": "./index.js",
   "types": "./src/index.ts",
   "scripts": {
     "generate": "prisma generate",
