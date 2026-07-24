@@ -7,8 +7,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import type { Update } from 'grammy/types';
-import { BotService } from './bot.service';
+import { BotService, Update } from './bot.service';
 
 @Controller('telegram')
 export class BotController {

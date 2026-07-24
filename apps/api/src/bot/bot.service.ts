@@ -6,8 +6,22 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard } from 'grammy';
-import type { Update, ChatMemberUpdated } from 'grammy/types';
 import { ReferralService } from '../referral/referral.service';
+
+export interface ChatMemberUpdated {
+  chat: { id: number | string };
+  new_chat_member: {
+    status: string;
+    user: { id: number | string; username?: string };
+  };
+}
+
+export interface Update {
+  update_id: number;
+  chat_member?: ChatMemberUpdated;
+  message?: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class BotService implements OnModuleInit, OnModuleDestroy {
@@ -212,7 +226,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     if (this.bot) {
       try {
-        await this.bot.handleUpdate(update);
+        await this.bot.handleUpdate(
+          update as unknown as Parameters<Bot['handleUpdate']>[0],
+        );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(`Error handling update with grammY: ${msg}`);
