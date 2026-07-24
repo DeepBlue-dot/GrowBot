@@ -11,11 +11,13 @@
   "dependencies": {
     "@telegram-apps/sdk": "^3.11.8",
     "axios": "^1.18.1",
+    "lucide-vue-next": "^1.0.0",
     "pinia": "^4.0.2",
     "vue": "^3.5.39",
     "vue-router": "4"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/tsconfig": "^0.9.1",
