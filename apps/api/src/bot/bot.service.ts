@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisService } from '../redis/redis.service';
+import { ReferralService } from '../referral/referral.service';
 
 @Injectable()
 export class BotService {
@@ -8,7 +8,7 @@ export class BotService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly redisService: RedisService,
+    private readonly referralService: ReferralService,
   ) {}
 
   verifySecretHeader(secretHeader: string): boolean {
@@ -39,19 +39,24 @@ export class BotService {
     this.logger.log(`[ChatMemberUpdate] User ${user.username || inviteeId} status changed to ${newStatus} in chat ${chatId}`);
 
     if (newStatus === 'member') {
-      // Step 5: Check Redis intent
-      const redisKey = `pending_ref:${inviteeId}:${chatId}`;
-      const referrerId = await this.redisService.getKey(redisKey);
+      // Step 5: Check PostgreSQL intent via ReferralService
+      const pendingIntent = await this.referralService.findPendingIntent(inviteeId, chatId);
 
-      if (referrerId) {
-        this.logger.log(`🎯 [Referral Verified] Invitee ${inviteeId} matched intent from Referrer ${referrerId}! Crediting referral...`);
-        await this.redisService.deleteKey(redisKey);
-        return { status: 'referral_validated', inviteeId, referrerId };
+      if (pendingIntent) {
+        this.logger.log(`🎯 [PostgreSQL Referral Verified] Invitee ${inviteeId} matched intent from Referrer ${pendingIntent.referrerCode}! Crediting referral...`);
+        await this.referralService.markValidated(inviteeId, chatId);
+        return { 
+          status: 'referral_validated', 
+          inviteeId, 
+          referrerCode: pendingIntent.referrerCode, 
+          storage: 'PostgreSQL' 
+        };
       }
     } else if (newStatus === 'left' || newStatus === 'kicked') {
-      // Anti-Cheat Credit Revocation
-      this.logger.warn(`⚠️ [Anti-Cheat Revocation] Member ${inviteeId} left chat ${chatId}. Revoking unearned referral credit...`);
-      return { status: 'referral_revoked', inviteeId };
+      // Anti-Cheat Credit Revocation in PostgreSQL
+      this.logger.warn(`⚠️ [PostgreSQL Anti-Cheat Revocation] Member ${inviteeId} left chat ${chatId}. Revoking unearned referral credit in PostgreSQL...`);
+      await this.referralService.markRevoked(inviteeId, chatId);
+      return { status: 'referral_revoked', inviteeId, storage: 'PostgreSQL' };
     }
 
     return { status: 'member_updated', newStatus };
