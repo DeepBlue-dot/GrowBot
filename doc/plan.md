@@ -165,42 +165,42 @@ Every significant action produces an immutable `CampaignEvent` record.
 
 ### 3.1 Mini App Frontend
 
-The Mini App runs inside Telegram's WebView. It should be a route within the existing Vue 3 app (`/miniapp`) or a separate lightweight app.
+The Mini App runs inside Telegram's WebView as a dedicated route (`/miniapp`).
 
 **Tasks:**
-- [ ] Create `/miniapp` route in `apps/web` (or separate app under `apps/miniapp`)
-- [ ] Integrate `@telegram-apps/sdk` for Telegram WebView environment detection
-- [ ] Auto-authenticate on mount: read `initDataRaw` from Telegram SDK → `POST /api/auth/telegram-miniapp` → store JWT
-- [ ] Handle `startapp` parameter to extract referral code (e.g. `ref_UNIQUECODE`)
+- [x] Create `/miniapp` route in `apps/web`
+- [x] Integrate Telegram WebApp SDK for WebView environment detection
+- [x] Auto-authenticate on mount: read `initDataRaw` from Telegram SDK → `POST /api/auth/telegram-miniapp` → store JWT
+- [x] Handle `startapp` parameter to extract referral code (e.g. `ref_UNIQUECODE`)
 
-**Files:** New views/components under `apps/web/src/views/miniapp/` or new app
+**Files:** `apps/web/src/views/MiniAppView.vue`, `apps/web/src/stores/telegramStore.ts`
 
 ### 3.2 Referral Link & Share Flow
 
 **Tasks:**
-- [ ] **Campaign Landing** — Show available campaigns for the invitee's community
-- [ ] **Join Campaign** — `POST /api/campaigns/:id/join` → creates `CampaignParticipant` with unique `referralCode`
-- [ ] **Referral Link Display** — Show `https://t.me/BotUsername/app?startapp=ref_CODE` with copy + share buttons
-- [ ] **Invitee Landing** — When opened via referral link, show: "You're invited to [Community] by @username" + "Join Community" button
-- [ ] **Intent Registration** — On "Join Community" tap → `POST /api/referral/intent` → redirect to `t.me/CommunityUsername`
+- [x] **Campaign Landing** — Show available campaigns for the invitee's community
+- [x] **Join Campaign** — `POST /api/campaigns/:id/join` → creates `CampaignParticipant` with unique `referralCode`
+- [x] **Referral Link Display** — Show `https://t.me/BotUsername/app?startapp=ref_CODE` with copy + share buttons
+- [x] **Invitee Landing** — When opened via referral link, show: "You're invited to [Community] by @username" + "Join Community" button
+- [x] **Intent Registration** — On "Join Community" tap → `POST /api/referral/intent` → redirect to `t.me/CommunityUsername`
 
-**Files:** API: new `POST /api/campaigns/:id/join` endpoint. Frontend: Mini App views.
+**Files:** `apps/api/src/campaign/campaign.controller.ts`, `apps/web/src/views/MiniAppView.vue`
 
 ### 3.3 Progress & Leaderboard Views
 
 **Tasks:**
-- [ ] **My Campaigns** — List campaigns the participant has joined with progress bars (validated / target)
-- [ ] **Referral List** — Show each invitee with status (pending / validated / revoked)
-- [ ] **Leaderboard** — Show participant's rank among other referrers
-- [ ] **Rewards** — Show earned rewards with status
+- [x] **My Campaigns** — List campaigns the participant has joined with progress bars (validated / target)
+- [x] **Referral List** — Show each invitee with status (pending / validated / revoked)
+- [x] **Leaderboard** — Show participant's rank among other referrers
+- [x] **Rewards** — Show earned rewards with status
 
-**Files:** Mini App frontend views + new API endpoints: `GET /api/me/campaigns`, `GET /api/me/referrals`
+**Files:** `apps/api/src/me/me.service.ts`, `apps/api/src/me/me.controller.ts`
 
 ### Verification
-- [ ] Open Mini App → auto-authenticated → sees available campaigns
-- [ ] Join campaign → gets unique referral link → can copy/share
-- [ ] Invitee opens link → sees landing → taps join → redirected to Telegram group
-- [ ] After invitee joins group → participant's progress bar updates
+- [x] Open Mini App → auto-authenticated → sees available campaigns
+- [x] Join campaign → gets unique referral link → can copy/share
+- [x] Invitee opens link → sees landing → taps join → redirected to Telegram group
+- [x] After invitee joins group → participant's progress bar updates
 
 ---
 
@@ -211,38 +211,38 @@ The Mini App runs inside Telegram's WebView. It should be a route within the exi
 ### 4.1 Telegram Login Widget
 
 **Tasks:**
-- [ ] Add Telegram Login Widget to dashboard login page (using bot username + Web Login callback)
-- [ ] On callback → `POST /api/auth/telegram-web` → receive JWT
-- [ ] Store JWT in localStorage/cookie, attach as `Authorization: Bearer` header on all API requests
-- [ ] Add auth guard to Vue Router (redirect to login if no token)
-- [ ] Add logout functionality (clear token)
+- [x] Add Telegram Login Widget & Dev Login to dashboard login page
+- [x] On callback → `POST /api/auth/telegram-web` → receive JWT
+- [x] Store JWT in localStorage/cookie, attach as `Authorization: Bearer` header on all API requests
+- [x] Add auth guard to Vue Router (redirect to login if no token)
+- [x] Add logout functionality (clear token)
 
-**Files:** New `apps/web/src/views/LoginView.vue`, update `apps/web/src/stores/authStore.ts`, update `apps/web/src/router/index.ts`
+**Files:** `apps/web/src/views/LoginView.vue`, `apps/web/src/stores/authStore.ts`, `apps/web/src/router/index.ts`, `apps/web/src/components/layout/Header.vue`
 
 ### 4.2 Campaign Builder Wizard
 
 **Tasks:**
-- [ ] Campaign creation form: title, description, type (MILESTONE/LEADERBOARD), referral target, reward description, dates
-- [ ] Validation rule selector: IMMEDIATE / TIME_BOUND (with hours input) / MESSAGE_COUNT (with threshold input)
-- [ ] Preview step before submitting
-- [ ] `POST /api/campaigns` integration
-- [ ] Campaign edit/pause/resume actions on existing campaign cards
+- [x] Campaign creation form: title, description, type (MILESTONE/LEADERBOARD), referral target, reward description, dates
+- [x] Validation rule selector: IMMEDIATE / TIME_BOUND (with hours input) / MESSAGE_COUNT (with threshold input)
+- [x] Preview step before submitting
+- [x] `POST /api/campaigns` integration
+- [x] Campaign edit/pause/resume actions on existing campaign cards
 
-**Files:** New `apps/web/src/views/CampaignCreateView.vue`, update `CampaignsView.vue`
+**Files:** `apps/web/src/components/campaigns/CampaignCreateModal.vue`, `apps/web/src/views/CampaignsView.vue`
 
 ### 4.3 Reward Management UI
 
 **Tasks:**
-- [ ] Reward table with approve/reject/deliver action buttons connected to real API
-- [ ] Reward detail modal with notes field
-- [ ] Filter by status (pending/approved/delivered/rejected)
+- [x] Reward table with approve/reject/deliver action buttons connected to real API
+- [x] Reward detail modal with notes field
+- [x] Filter by status (pending/approved/delivered/rejected)
 
-**Files:** Update `apps/web/src/components/RewardTable.vue`, `apps/web/src/views/RewardsView.vue`
+**Files:** `apps/web/src/components/rewards/RewardTable.vue`, `apps/web/src/views/RewardsView.vue`
 
 ### Verification
-- [ ] Login via Telegram Widget → JWT stored → dashboard loads user's workspaces
-- [ ] Create campaign from dashboard → appears in campaign list
-- [ ] Approve reward → status updates in DB and UI
+- [x] Login via Telegram Widget → JWT stored → dashboard loads user's workspaces
+- [x] Create campaign from dashboard → appears in campaign list
+- [x] Approve reward → status updates in DB and UI
 
 ---
 
