@@ -3,8 +3,17 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
-import { AuthService, JwtPayload } from '../auth.service';
+import { Reflector } from '@nestjs/core';
+import { AuthService } from '../auth.service.js';
+import type { JwtPayload } from '../auth.service.js';
+
+/**
+ * Metadata key for the @Public() decorator.
+ * Routes decorated with @Public() bypass JWT verification.
+ */
+export const IS_PUBLIC_KEY = 'isPublic';
 
 interface RequestWithUser {
   headers?: Record<string, string | undefined>;
@@ -13,25 +22,28 @@ interface RequestWithUser {
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly authService: AuthService) {}
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly reflector: Reflector,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Check if route is marked as @Public()
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<RequestWithUser>();
     const headers = request.headers || {};
     const authHeader = headers.authorization || headers.Authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // Allow development bypass if token omitted in dev mode
-      if (process.env.NODE_ENV !== 'production') {
-        request.user = {
-          sub: 'usr-demo123',
-          telegramId: '987654321',
-          username: 'alex_web3',
-          firstName: 'Alex',
-          isAdmin: true,
-        };
-        return true;
-      }
       throw new UnauthorizedException('Missing Authorization Bearer token');
     }
 
@@ -39,8 +51,19 @@ export class JwtAuthGuard implements CanActivate {
     if (!token) {
       throw new UnauthorizedException('Malformed Authorization Bearer token');
     }
-    const payload = this.authService.verifyToken(token);
-    request.user = payload;
-    return true;
+
+    try {
+      const payload = this.authService.verifyToken(token);
+      request.user = payload;
+      return true;
+    } catch (error: unknown) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      this.logger.warn(
+        `JWT verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new UnauthorizedException('Invalid or expired token');
+    }
   }
 }
