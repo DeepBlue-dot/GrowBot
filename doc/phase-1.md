@@ -187,10 +187,10 @@ Referral flow:
 1. Participant shares a GrowBot referral link.
 2. Invitee opens the Telegram Mini App.
 3. Telegram authenticates the user automatically.
-4. GrowBot stores a temporary referral intent.
+4. GrowBot stores a referral intent in PostgreSQL (with status `PENDING_JOIN`).
 5. User joins the Telegram community.
-6. Telegram webhook verifies the membership.
-7. Referral is permanently recorded.
+6. Telegram webhook verifies the membership against PostgreSQL.
+7. Referral is updated to `VALIDATED` and participant is credited.
 
 This approach provides reliable attribution while minimizing Bot API limitations.
 
@@ -428,16 +428,16 @@ The system shall implement:
 
 ---
 
-## Cache & Temporary Storage
+## Storage & Intent Pipeline
 
-* Redis
+* PostgreSQL (via Prisma ORM) + In-Memory Fallback
 
 Used for:
 
-* Temporary referral intents
-* Session caching
-* Rate limiting
-* Background processing
+* Referral intents (`PENDING_JOIN`, `VALIDATED`, `REVOKED`)
+* Session management & JWT validation
+* Community member join/leave tracking
+* Event sourcing (`CampaignEvent` log)
 
 ---
 

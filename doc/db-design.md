@@ -22,9 +22,9 @@ The GrowBot database is built on **PostgreSQL** and managed via **Prisma ORM**. 
 6. **5-Step Attribution & Anti-Cheat Flow**:
    - **Step 1 (Link Generation)**: Participant generates unique Mini App referral link (`t.me/GrowBotApp/app?startapp=ref_CODE`).
    - **Step 2 (Seamless Auth)**: Invitee opens Mini App; backend verifies `initDataRaw` HMAC-SHA256 signature.
-   - **Step 3 (Intent Registration)**: Backend logs pending intent in Redis with 24h TTL (`pending_ref:{inviteeId}:{communityChatId}`).
+   - **Step 3 (Intent Registration)**: Backend creates `Referral` in PostgreSQL (`status: PENDING_JOIN`) and emits an `INTENT_CREATED` `CampaignEvent`.
    - **Step 4 (Direct Join)**: Invitee joins group/channel; Telegram dispatches `chat_member` webhook update to NestJS.
-   - **Step 5 (Verification & Credit / Anti-Cheat)**: Webhook verifies join against Redis, writes `Referral` and `CampaignEvent` to PostgreSQL, increments count. If invitee leaves later (`status: left`), webhook marks referral as `REVOKED`, decrements credit, and logs a `REFERRAL_REVOKED` event.
+   - **Step 5 (Verification & Credit / Anti-Cheat)**: Webhook looks up `Referral` in PostgreSQL (`status: PENDING_JOIN`), updates status to `VALIDATED`, increments referrer credit, and writes `REFERRAL_VALIDATED` `CampaignEvent`. If invitee leaves later (`status: left`), webhook marks referral as `REVOKED`, decrements credit, and logs a `REFERRAL_REVOKED` event.
 
 ---
 
@@ -607,7 +607,7 @@ model TelegramEventLog {
 
 ---
 
-## 5. 5-Step Mini App & Event-Driven Redis Attribution Integration
+## 5. 5-Step Mini App & Event-Driven PostgreSQL Attribution Integration
 
 1. **Step 1: Link Generation**
    - User A shares Mini App link: `https://t.me/GrowBotApp/app?startapp=ref_USER_A_CAMP1`.
@@ -618,10 +618,9 @@ model TelegramEventLog {
    - Frontend passes `initDataRaw` to NestJS.
    - NestJS verifies cryptographic HMAC-SHA256 signature to validate Invitee B's authentic Telegram ID.
 
-3. **Step 3: Intent Registration in Redis & Event Dispatch**
+3. **Step 3: Intent Registration in PostgreSQL & Event Dispatch**
    - Mini App shows: *"Welcome! You're invited to [Community Name]. Tap below to join."*
-   - When Invitee B taps "Join Community", NestJS stores key in Redis (24-hour TTL):
-     `pending_ref:{inviteeId}:{communityChatId}` -> `{ inviterId, campaignId, referralCode }`
+   - When Invitee B taps "Join Community", NestJS creates a `Referral` record in PostgreSQL with `status: PENDING_JOIN` (and stores in in-memory Map fallback).
    - Dispatches a `CampaignEvent` of type `INTENT_CREATED`.
 
 4. **Step 4: Direct Join & Webhook Sync**
@@ -630,12 +629,12 @@ model TelegramEventLog {
    - NestJS updates or creates `CommunityMember` record, setting `first_joined_at` if new or incrementing `rejoined_count` if re-joining!
 
 5. **Step 5: Verification & Credit / Anti-Cheat Revocation via Events**
-   - Webhook checks Redis for `pending_ref:{inviteeId}:{communityChatId}`.
+   - Webhook queries PostgreSQL for pending `Referral` with `status: PENDING_JOIN` for `inviteeId` and `communityId`.
    - If found:
-     - Creates `Referral` in PostgreSQL (`status: PENDING_VALIDATION` or `VALIDATED`).
+     - Updates `Referral` in PostgreSQL to `status: VALIDATED` (setting `joinedAt` and `validatedAt`).
      - Emits `CampaignEvent` of type `MEMBER_JOINED` and `REFERRAL_VALIDATED`.
      - Increments `validatedReferrals` on `CampaignParticipant` (if validation rule is immediate).
-     - Removes Redis key.
+     - Checks and auto-creates `Reward` if milestone target is reached.
    - **Anti-Cheat Revocation**: If Invitee B leaves the group/channel later, Telegram sends a `chat_member` update (`status === "left"`). NestJS marks referral as `REVOKED`, sets `revokedAt`, decrements `validatedReferrals` on `CampaignParticipant`, and emits a `CampaignEvent` of type `REFERRAL_REVOKED`.
 
 ---
