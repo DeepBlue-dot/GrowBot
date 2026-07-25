@@ -502,8 +502,18 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       `[ChatMemberUpdate] User ${user.username || inviteeId} status changed to ${newStatus} in chat ${chatId}`,
     );
 
-    if (newStatus === 'member') {
-      // Step 5: Check pending intent via ReferralService
+    const parsedChatId = BigInt(chatMemberUpdate.chat.id);
+    const parsedUserTgId = BigInt(user.id);
+
+    if (newStatus === 'member' || newStatus === 'administrator' || newStatus === 'creator') {
+      // 1. Upsert CommunityMember
+      await this.communityService.upsertMember(
+        parsedChatId,
+        parsedUserTgId,
+        user.username,
+      );
+
+      // 2. Check pending intent via ReferralService
       const pendingIntent = await this.referralService.findPendingIntent(
         inviteeId,
         chatId,
@@ -521,7 +531,14 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         };
       }
     } else if (newStatus === 'left' || newStatus === 'kicked') {
-      // Anti-Cheat Credit Revocation
+      // 1. Update CommunityMember status
+      await this.communityService.updateMemberStatus(
+        parsedChatId,
+        parsedUserTgId,
+        newStatus === 'kicked' ? 'KICKED' : 'LEFT',
+      );
+
+      // 2. Anti-Cheat Credit Revocation
       this.logger.warn(
         `⚠️ [Anti-Cheat Revocation] Member ${inviteeId} left chat ${chatId}. Revoking unearned referral credit...`,
       );

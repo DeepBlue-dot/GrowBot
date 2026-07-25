@@ -10,6 +10,8 @@ import { ReferralModule } from './referral/referral.module';
 import { CampaignModule } from './campaign/campaign.module';
 import { RewardModule } from './reward/reward.module';
 
+import { EventModule } from './event/event.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,6 +27,7 @@ import { RewardModule } from './reward/reward.module';
     ReferralModule,
     CampaignModule,
     RewardModule,
+    EventModule,
   ],
 })
 export class AppModule {}

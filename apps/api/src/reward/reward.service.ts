@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { EventService } from '../event/event.service.js';
 
 export interface RewardItem {
   id: string;
@@ -14,7 +15,12 @@ export interface RewardItem {
 
 @Injectable()
 export class RewardService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(RewardService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventService: EventService,
+  ) {}
 
   private mockRewards: RewardItem[] = [
     {
@@ -73,7 +79,7 @@ export class RewardService {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`Prisma findMany rewards fallback: ${msg}`);
+      this.logger.warn(`Prisma findMany rewards fallback: ${msg}`);
     }
 
     return this.mockRewards;
@@ -108,6 +114,86 @@ export class RewardService {
       }
       reward.status = status;
       return reward;
+    }
+  }
+
+  async checkAndCreateMilestoneReward(
+    campaignId: string,
+    userId: string,
+  ): Promise<RewardItem | null> {
+    try {
+      const campaign = await this.prisma.campaign.findUnique({
+        where: { id: campaignId },
+      });
+      if (!campaign || !campaign.referralTarget) return null;
+
+      const participant = await this.prisma.campaignParticipant.findUnique({
+        where: {
+          campaignId_userId: { campaignId, userId },
+        },
+      });
+
+      if (!participant || participant.validatedReferrals < campaign.referralTarget) {
+        return null;
+      }
+
+      // Check if reward already created for this user on this campaign
+      const existingReward = await this.prisma.reward.findFirst({
+        where: { campaignId, userId },
+        include: { campaign: true, user: true },
+      });
+
+      if (existingReward) {
+        return {
+          id: existingReward.id,
+          campaignId: existingReward.campaignId,
+          campaignTitle: existingReward.campaign.title,
+          winnerUsername: existingReward.user.username || existingReward.user.firstName,
+          winnerTelegramId: String(existingReward.user.telegramId),
+          rewardTitle: existingReward.rewardTitle,
+          status: existingReward.status,
+          createdAt: existingReward.earnedAt.toISOString().split('T')[0],
+        };
+      }
+
+      // Create new reward
+      const newReward = await this.prisma.reward.create({
+        data: {
+          campaignId,
+          userId,
+          rewardTitle: campaign.rewardDescription || 'Milestone Reward',
+          status: 'PENDING',
+        },
+        include: { campaign: true, user: true },
+      });
+
+      // Emit REWARD_EARNED event
+      await this.eventService.emitEvent({
+        campaignId,
+        participantId: participant.id,
+        userId,
+        eventType: 'REWARD_EARNED',
+        metadata: { rewardId: newReward.id, rewardTitle: newReward.rewardTitle },
+      });
+
+      this.logger.log(
+        `🎁 [Reward Earned] User ${userId} hit target (${campaign.referralTarget}) in campaign ${campaignId}! Reward created: ${newReward.id}`,
+      );
+
+      return {
+        id: newReward.id,
+        campaignId: newReward.campaignId,
+        campaignTitle: newReward.campaign.title,
+        winnerUsername: newReward.user.username || newReward.user.firstName,
+        winnerTelegramId: String(newReward.user.telegramId),
+        rewardTitle: newReward.rewardTitle,
+        status: newReward.status,
+        createdAt: newReward.earnedAt.toISOString().split('T')[0],
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to check/create milestone reward: ${msg}`);
+      return null;
     }
   }
 }

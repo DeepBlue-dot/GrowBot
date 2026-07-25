@@ -242,6 +242,115 @@ export class CommunityService {
   }
 
   // ──────────────────────────────────────────────────
+  // CommunityMember Tracking
+  // ──────────────────────────────────────────────────
+
+  async upsertMember(
+    chatId: bigint,
+    userTgId: bigint,
+    username?: string,
+    firstName?: string,
+  ) {
+    try {
+      const community = await this.prisma.community.findUnique({
+        where: { telegramChatId: chatId },
+      });
+      if (!community) return null;
+
+      // Upsert User
+      const user = await this.prisma.user.upsert({
+        where: { telegramId: userTgId },
+        update: {
+          username: username ?? undefined,
+          firstName: firstName ?? undefined,
+        },
+        create: {
+          telegramId: userTgId,
+          username: username ?? null,
+          firstName: firstName ?? `User_${userTgId.toString()}`,
+        },
+      });
+
+      // Upsert CommunityMember
+      const existingMember = await this.prisma.communityMember.findUnique({
+        where: {
+          communityId_userId: {
+            communityId: community.id,
+            userId: user.id,
+          },
+        },
+      });
+
+      const now = new Date();
+      if (existingMember) {
+        return await this.prisma.communityMember.update({
+          where: { id: existingMember.id },
+          data: {
+            status: 'ACTIVE',
+            joinedAt: now,
+            lastActiveAt: now,
+            rejoinedCount: { increment: 1 },
+          },
+        });
+      } else {
+        return await this.prisma.communityMember.create({
+          data: {
+            communityId: community.id,
+            userId: user.id,
+            status: 'ACTIVE',
+            firstJoinedAt: now,
+            joinedAt: now,
+            lastActiveAt: now,
+          },
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to upsert CommunityMember: ${msg}`);
+      return null;
+    }
+  }
+
+  async updateMemberStatus(
+    chatId: bigint,
+    userTgId: bigint,
+    status: 'LEFT' | 'KICKED' | 'BANNED',
+  ) {
+    try {
+      const community = await this.prisma.community.findUnique({
+        where: { telegramChatId: chatId },
+      });
+      const user = await this.prisma.user.findUnique({
+        where: { telegramId: userTgId },
+      });
+      if (!community || !user) return null;
+
+      const member = await this.prisma.communityMember.findUnique({
+        where: {
+          communityId_userId: {
+            communityId: community.id,
+            userId: user.id,
+          },
+        },
+      });
+
+      if (member) {
+        return await this.prisma.communityMember.update({
+          where: { id: member.id },
+          data: {
+            status,
+            leftAt: new Date(),
+          },
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to update CommunityMember status: ${msg}`);
+    }
+    return null;
+  }
+
+  // ──────────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────────
 
