@@ -253,43 +253,43 @@ The Mini App runs inside Telegram's WebView as a dedicated route (`/miniapp`).
 ### 5.1 Bot Campaign Notifications
 
 **Tasks:**
-- [ ] On campaign `ACTIVE` → bot sends announcement to community chat
-- [ ] On participant milestone reached → bot sends congrats message
-- [ ] On campaign `COMPLETED` → bot sends results + top inviters
-- [ ] On reward approved → bot DMs participant
+- [x] On campaign `ACTIVE` → bot sends announcement to community chat
+- [x] On participant milestone reached → bot sends congrats message
+- [x] On campaign `COMPLETED` → bot sends results + top inviters
+- [x] On reward approved → bot DMs participant
 
 **Files:** `apps/api/src/bot/bot.service.ts`, `apps/api/src/campaign/campaign.service.ts`
 
 ### 5.2 CommunityDailyStat Writer
 
 **Tasks:**
-- [ ] Scheduled job (cron or on each webhook event) that increments `newJoins`, `leaves`, `totalReferrals`, `validatedReferrals` for the current day
-- [ ] Snapshot `totalMembers` at end of day
-- [ ] `GET /api/communities/:id/stats?days=7` endpoint
+- [x] Event-driven daily metric writer that increments `newJoins`, `leaves`, `totalReferrals`, `validatedReferrals` for the current day
+- [x] Snapshot `totalMembers` on daily metric updates
+- [x] `GET /api/communities/:id/stats?days=7` endpoint
 
-**Files:** New `apps/api/src/stats/stats.service.ts`, update community controller
+**Files:** `apps/api/src/stats/stats.service.ts`, `apps/api/src/community/community.controller.ts`
 
 ### 5.3 Analytics Dashboard Integration
 
 **Tasks:**
-- [ ] Wire `GrowthChart` component to real `CommunityDailyStat` data
-- [ ] Add time range selector (7d / 30d / 90d)
-- [ ] Campaign performance chart (referrals over time)
+- [x] Wire `GrowthChart` component to real `CommunityDailyStat` data
+- [x] Add time range selector (7d / 30d / 90d)
+- [x] Campaign performance chart (referrals over time)
 
-**Files:** Update `apps/web/src/components/GrowthChart.vue`, `apps/web/src/views/DashboardView.vue`
+**Files:** `apps/web/src/components/dashboard/GrowthChart.vue`, `apps/web/src/views/DashboardView.vue`
 
 ### 5.4 CSV Export
 
 **Tasks:**
-- [ ] `GET /api/campaigns/:id/export` → returns CSV with participant data, referral counts, reward status
-- [ ] Download button in dashboard campaign detail view
+- [x] `GET /api/campaigns/:id/export` → returns CSV with participant data, referral counts, reward status
+- [x] Download button in dashboard campaign detail view
 
-**Files:** Campaign controller + service
+**Files:** `apps/api/src/campaign/campaign.controller.ts`, `apps/web/src/components/campaigns/CampaignCard.vue`
 
 ### Verification
-- [ ] Activate campaign → bot posts announcement in group
-- [ ] Dashboard growth chart shows real daily data
-- [ ] Download CSV export → valid data
+- [x] Activate campaign → bot posts announcement in group
+- [x] Dashboard growth chart shows real daily data
+- [x] Download CSV export → valid data
 
 ---
 
