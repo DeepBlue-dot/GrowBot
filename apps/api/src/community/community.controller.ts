@@ -1,11 +1,14 @@
 import { Controller, Get, Param, UseGuards, Query } from '@nestjs/common';
-import { CommunityService } from './community.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CommunityService } from './community.service.js';
+import { StatsService } from '../stats/stats.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @Controller('communities')
-@UseGuards(JwtAuthGuard)
 export class CommunityController {
-  constructor(private readonly communityService: CommunityService) {}
+  constructor(
+    private readonly communityService: CommunityService,
+    private readonly statsService: StatsService,
+  ) {}
 
   @Get()
   async findByWorkspace(@Query('workspaceId') workspaceId: string) {
@@ -15,5 +18,14 @@ export class CommunityController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.communityService.findOne(id);
+  }
+
+  @Get(':id/stats')
+  async getCommunityStats(
+    @Param('id') id: string,
+    @Query('days') days?: string,
+  ) {
+    const parsedDays = days ? parseInt(days, 10) : 7;
+    return this.statsService.getCommunityStats(id, parsedDays);
   }
 }

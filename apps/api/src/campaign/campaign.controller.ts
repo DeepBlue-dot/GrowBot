@@ -8,7 +8,9 @@ import {
   Param,
   Query,
   UseGuards,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CampaignService } from './campaign.service.js';
 import { CreateCampaignDto, UpdateCampaignDto } from './dto/campaign.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -25,6 +27,17 @@ export class CampaignController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.campaignService.findOne(id);
+  }
+
+  @Get(':id/export')
+  async exportCampaignCsv(@Param('id') id: string, @Res() res: Response) {
+    const csvContent = await this.campaignService.exportCampaignCsv(id);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="campaign-${id}-export.csv"`,
+    );
+    return res.status(200).send(csvContent);
   }
 
   @Get(':id/leaderboard')

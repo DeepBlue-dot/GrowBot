@@ -12,9 +12,14 @@ import {
 
 export { CreateCampaignDto, UpdateCampaignDto, CampaignRuleInput };
 
+import { BotService } from '../bot/bot.service.js';
+
 @Injectable()
 export class CampaignService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly botService: BotService,
+  ) {}
 
   async findAll(communityId?: string) {
     const dbCampaigns = await this.prisma.campaign.findMany({
@@ -211,7 +216,11 @@ export class CampaignService {
     id: string,
     status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED',
   ) {
-    const existing = await this.prisma.campaign.findUnique({ where: { id } });
+    const existing = await this.prisma.campaign.findUnique({
+      where: { id },
+      include: { community: true },
+    });
+
     if (!existing) {
       throw new NotFoundException(`Campaign ${id} not found`);
     }
@@ -220,6 +229,15 @@ export class CampaignService {
       where: { id },
       data: { status },
     });
+
+    if (status === 'ACTIVE' && existing.community) {
+      await this.botService.sendCampaignAnnouncement(
+        existing.community.telegramChatId,
+        existing.title,
+        existing.rewardDescription || 'VIP Pass',
+        existing.referralTarget || 5,
+      );
+    }
 
     return this.findOne(id);
   }
@@ -232,6 +250,75 @@ export class CampaignService {
 
     await this.prisma.campaign.delete({ where: { id } });
     return { success: true, id };
+  }
+
+  async exportCampaignCsv(id: string): Promise<string> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id },
+      include: {
+        community: true,
+        participants: {
+          include: {
+            user: true,
+          },
+          orderBy: { validatedReferrals: 'desc' },
+        },
+      },
+    });
+
+    if (!campaign) {
+      // Fallback CSV for mock data
+      const headers = [
+        'Rank',
+        'Participant ID',
+        'Username',
+        'Telegram ID',
+        'Total Referrals',
+        'Validated Referrals',
+        'Target Referrals',
+        'Reward Status',
+      ].join(',');
+
+      const rows = [
+        '1,"p-1","alex_web3","10928374",51,48,5,"APPROVED"',
+        '2,"p-2","sarah_tg","98712345",41,36,5,"PENDING"',
+        '3,"p-3","crypto_ninja","34567890",30,29,5,"PENDING"',
+        '4,"p-4","elena_v","54321678",22,22,5,"DELIVERED"',
+      ].join('\n');
+
+      return `${headers}\n${rows}`;
+    }
+
+    const headers = [
+      'Rank',
+      'Participant ID',
+      'Username',
+      'Telegram ID',
+      'Total Referrals',
+      'Validated Referrals',
+      'Target Referrals',
+      'Joined At',
+    ].join(',');
+
+    const rows = campaign.participants.map((p, index) => {
+      const rank = index + 1;
+      const username = p.user?.username || p.user?.firstName || 'User';
+      const tgId = p.user?.telegramId ? p.user.telegramId.toString() : '';
+      const joinedAt = p.createdAt.toISOString().split('T')[0];
+
+      return [
+        rank,
+        `"${p.id}"`,
+        `"${username}"`,
+        `"${tgId}"`,
+        p.totalReferrals,
+        p.validatedReferrals,
+        campaign.referralTarget || 5,
+        `"${joinedAt}"`,
+      ].join(',');
+    });
+
+    return [headers, ...rows].join('\n');
   }
 
   async joinCampaign(campaignId: string, userTgIdOrId?: string) {

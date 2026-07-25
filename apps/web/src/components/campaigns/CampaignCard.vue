@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Campaign } from '../../types';
-import { Users, Award, CheckCircle2, Clock, MessageSquare, Play, Pause } from 'lucide-vue-next';
+import { Users, Award, CheckCircle2, Clock, MessageSquare, Play, Pause, Download } from 'lucide-vue-next';
 
 const props = defineProps<{
   campaign: Campaign;
@@ -9,6 +9,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggle-status', id: string): void;
 }>();
+
+function downloadCsv() {
+  const url = `/api/campaigns/${props.campaign.id}/export`;
+  window.open(url, '_blank');
+}
 </script>
 
 <template>
@@ -37,14 +42,23 @@ const emit = defineEmits<{
           </h3>
         </div>
 
-        <button 
-          @click="emit('toggle-status', campaign.id)"
-          class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
-          :title="campaign.isActive ? 'Pause Campaign' : 'Activate Campaign'"
-        >
-          <Pause v-if="campaign.isActive" class="w-4 h-4 text-amber-400" />
-          <Play v-else class="w-4 h-4 text-emerald-400" />
-        </button>
+        <div class="flex items-center gap-2">
+          <button 
+            @click="downloadCsv"
+            class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            title="Export Campaign Data CSV"
+          >
+            <Download class="w-4 h-4 text-indigo-400" />
+          </button>
+          <button 
+            @click="emit('toggle-status', campaign.id)"
+            class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            :title="campaign.isActive ? 'Pause Campaign' : 'Activate Campaign'"
+          >
+            <Pause v-if="campaign.isActive" class="w-4 h-4 text-amber-400" />
+            <Play v-else class="w-4 h-4 text-emerald-400" />
+          </button>
+        </div>
       </div>
 
       <p class="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">

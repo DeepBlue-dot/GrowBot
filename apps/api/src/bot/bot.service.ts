@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard } from 'grammy';
 import { ReferralService } from '../referral/referral.service.js';
 import { CommunityService } from '../community/community.service.js';
+import { StatsService } from '../stats/stats.service.js';
 import type { TelegramChatData } from '../community/community.service.js';
 
 // ────────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     private readonly configService: ConfigService,
     private readonly referralService: ReferralService,
     private readonly communityService: CommunityService,
+    private readonly statsService: StatsService,
   ) {}
 
   async onModuleInit() {
@@ -506,14 +508,17 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     const parsedUserTgId = BigInt(user.id);
 
     if (newStatus === 'member' || newStatus === 'administrator' || newStatus === 'creator') {
-      // 1. Upsert CommunityMember
+      // 1. Record daily metric
+      await this.statsService.recordMetric(chatId, 'newJoins');
+
+      // 2. Upsert CommunityMember
       await this.communityService.upsertMember(
         parsedChatId,
         parsedUserTgId,
         user.username,
       );
 
-      // 2. Check pending intent via ReferralService
+      // 3. Check pending intent via ReferralService
       const pendingIntent = await this.referralService.findPendingIntent(
         inviteeId,
         chatId,
@@ -524,6 +529,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
           `🎯 [Referral Verified] Invitee ${inviteeId} matched intent from Referrer ${pendingIntent.referrerCode}! Crediting referral...`,
         );
         await this.referralService.markValidated(inviteeId, chatId);
+        await this.statsService.recordMetric(chatId, 'validatedReferrals');
         return {
           status: 'referral_validated',
           inviteeId,
@@ -531,14 +537,17 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         };
       }
     } else if (newStatus === 'left' || newStatus === 'kicked') {
-      // 1. Update CommunityMember status
+      // 1. Record daily metric
+      await this.statsService.recordMetric(chatId, 'leaves');
+
+      // 2. Update CommunityMember status
       await this.communityService.updateMemberStatus(
         parsedChatId,
         parsedUserTgId,
         newStatus === 'kicked' ? 'KICKED' : 'LEFT',
       );
 
-      // 2. Anti-Cheat Credit Revocation
+      // 3. Anti-Cheat Credit Revocation
       this.logger.warn(
         `⚠️ [Anti-Cheat Revocation] Member ${inviteeId} left chat ${chatId}. Revoking unearned referral credit...`,
       );
@@ -547,6 +556,81 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
 
     return { status: 'member_updated', newStatus };
+  }
+
+  // ──────────────────────────────────────────────────
+  // Bot Notification Dispatchers
+  // ──────────────────────────────────────────────────
+
+  async sendCampaignAnnouncement(
+    chatId: number | string | bigint,
+    title: string,
+    rewardDescription: string,
+    targetReferrals = 5,
+  ) {
+    if (!this.bot) return;
+    try {
+      const miniAppUrl =
+        this.configService.get<string>('MINI_APP_URL') ||
+        'https://grow-bot-brown.vercel.app/miniapp';
+
+      const keyboard = new InlineKeyboard().webApp(
+        '🚀 Join Campaign in Mini App',
+        miniAppUrl,
+      );
+
+      await this.bot.api.sendMessage(
+        Number(chatId),
+        `🚀 <b>NEW CAMPAIGN LAUNCHED!</b>\n\n` +
+          `<b>${title}</b>\n\n` +
+          `🎯 Goal: Invite <b>${targetReferrals}</b> friends\n` +
+          `🎁 Reward: <b>${rewardDescription}</b>\n\n` +
+          `Tap below to open the Mini App and get your unique referral link!`,
+        { reply_markup: keyboard, parse_mode: 'HTML' },
+      );
+      this.logger.log(`📢 Sent campaign announcement to chat ${chatId.toString()}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to send campaign announcement to chat ${chatId.toString()}: ${msg}`);
+    }
+  }
+
+  async sendMilestoneCongrats(
+    chatId: number | string | bigint,
+    username: string,
+    rewardTitle: string,
+  ) {
+    if (!this.bot) return;
+    try {
+      await this.bot.api.sendMessage(
+        Number(chatId),
+        `🎉 <b>MILESTONE UNLOCKED!</b>\n\n` +
+          `Congratulations @${username}! You hit your referral target and unlocked <b>${rewardTitle}</b>! 🏆`,
+        { parse_mode: 'HTML' },
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to send milestone congrats: ${msg}`);
+    }
+  }
+
+  async sendRewardNotification(
+    telegramId: number | string | bigint,
+    rewardTitle: string,
+    status: string,
+  ) {
+    if (!this.bot) return;
+    try {
+      await this.bot.api.sendMessage(
+        Number(telegramId),
+        `🎁 <b>Reward Status Update!</b>\n\n` +
+          `Your reward <b>${rewardTitle}</b> status has been updated to: <b>${status}</b>.`,
+        { parse_mode: 'HTML' },
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to send reward notification DM to user ${telegramId.toString()}: ${msg}`);
+    }
   }
 
   // ──────────────────────────────────────────────────

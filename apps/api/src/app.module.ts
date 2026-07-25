@@ -12,6 +12,7 @@ import { RewardModule } from './reward/reward.module';
 
 import { EventModule } from './event/event.module';
 import { MeModule } from './me/me.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { MeModule } from './me/me.module';
     RewardModule,
     EventModule,
     MeModule,
+    StatsModule,
   ],
 })
 export class AppModule {}

@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
-import { CampaignService } from './campaign.service';
-import { CampaignController } from './campaign.controller';
+import { CampaignService } from './campaign.service.js';
+import { CampaignController } from './campaign.controller.js';
+import { BotModule } from '../bot/bot.module.js';
 
 @Module({
+  imports: [BotModule],
   controllers: [CampaignController],
   providers: [CampaignService],
   exports: [CampaignService],

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EventService } from '../event/event.service.js';
+import { BotService } from '../bot/bot.service.js';
 
 export interface RewardItem {
   id: string;
@@ -20,6 +21,7 @@ export class RewardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventService: EventService,
+    private readonly botService: BotService,
   ) {}
 
   private mockRewards: RewardItem[] = [
@@ -97,6 +99,15 @@ export class RewardService {
         },
         include: { campaign: true, user: true },
       });
+
+      if (updated.user?.telegramId) {
+        await this.botService.sendRewardNotification(
+          updated.user.telegramId,
+          updated.rewardTitle,
+          status,
+        );
+      }
+
       return {
         id: updated.id,
         campaignId: updated.campaignId,
