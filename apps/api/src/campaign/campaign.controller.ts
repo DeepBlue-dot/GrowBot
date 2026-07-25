@@ -32,6 +32,14 @@ export class CampaignController {
     return this.campaignService.getLeaderboard(id);
   }
 
+  @Post(':id/join')
+  async joinCampaign(
+    @Param('id') id: string,
+    @Body('userId') userId?: string,
+  ) {
+    return this.campaignService.joinCampaign(id, userId);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(@Body() body: CreateCampaignDto) {

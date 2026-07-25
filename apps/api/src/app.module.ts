@@ -11,6 +11,7 @@ import { CampaignModule } from './campaign/campaign.module';
 import { RewardModule } from './reward/reward.module';
 
 import { EventModule } from './event/event.module';
+import { MeModule } from './me/me.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { EventModule } from './event/event.module';
     CampaignModule,
     RewardModule,
     EventModule,
+    MeModule,
   ],
 })
 export class AppModule {}

@@ -234,6 +234,54 @@ export class CampaignService {
     return { success: true, id };
   }
 
+  async joinCampaign(campaignId: string, userTgIdOrId?: string) {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+    if (!campaign) {
+      throw new NotFoundException(`Campaign ${campaignId} not found`);
+    }
+
+    const tgId =
+      userTgIdOrId && !isNaN(Number(userTgIdOrId))
+        ? BigInt(userTgIdOrId)
+        : BigInt(987654321);
+
+    const user = await this.prisma.user.upsert({
+      where: { telegramId: tgId },
+      update: {},
+      create: {
+        telegramId: tgId,
+        firstName: `User_${tgId.toString()}`,
+      },
+    });
+
+    const referralCode = `ref_${user.username || user.telegramId.toString()}_${campaignId.substring(0, 6)}`;
+
+    const participant = await this.prisma.campaignParticipant.upsert({
+      where: {
+        campaignId_userId: {
+          campaignId: campaign.id,
+          userId: user.id,
+        },
+      },
+      update: {},
+      create: {
+        campaignId: campaign.id,
+        userId: user.id,
+        referralCode,
+      },
+    });
+
+    return {
+      success: true,
+      participantId: participant.id,
+      campaignId: campaign.id,
+      referralCode: participant.referralCode,
+      referralLink: `https://t.me/GrowBotApp/app?startapp=${participant.referralCode}`,
+    };
+  }
+
   async getLeaderboard(campaignId?: string) {
     const participants = await this.prisma.campaignParticipant.findMany({
       where: campaignId ? { campaignId } : undefined,

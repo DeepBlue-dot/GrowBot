@@ -112,7 +112,7 @@ function shareTelegram() {
             </div>
             <div class="p-3 bg-slate-950/40 border border-slate-800 rounded-xl">
               <Zap class="w-4 h-4 text-purple-400 mx-auto mb-1" />
-              <p class="font-semibold text-slate-300">2. Redis Intent</p>
+              <p class="font-semibold text-slate-300">2. PostgreSQL Intent</p>
             </div>
             <div class="p-3 bg-slate-950/40 border border-slate-800 rounded-xl">
               <Gift class="w-4 h-4 text-emerald-400 mx-auto mb-1" />
