@@ -156,13 +156,38 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       await ctx.reply(
         `💡 <b>GrowBot Command Reference:</b>\n\n` +
           `• <b>/start</b> - Open Mini App and get referral link\n` +
+          `• <b>/addcommunity</b> - Add bot to your group or channel\n` +
           `• <b>/stats</b> - View referral invites performance\n` +
           `• <b>/help</b> - Display bot usage guide\n\n` +
           `<b>How to add a community:</b>\n` +
-          `1. Add @${ctx.me.username} to your group or channel\n` +
+          `1. Use /addcommunity or add @${ctx.me.username} to your group/channel\n` +
           `2. Make the bot an <b>administrator</b>\n` +
           `3. The community auto-registers in your dashboard!`,
         { parse_mode: 'HTML' },
+      );
+    });
+
+    // Command: /addcommunity
+    this.bot.command('addcommunity', async (ctx) => {
+      const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
+      this.logger.log(`📩 Received /addcommunity command from user ${username}`);
+      const botUsername = ctx.me.username;
+
+      const keyboard = new InlineKeyboard()
+        .url('➕ Add to Group', `https://t.me/${botUsername}?startgroup=true&admin=change_info+restrict_members+invite_users+pin_messages`)
+        .row()
+        .url('📢 Add to Channel', `https://t.me/${botUsername}?startchannel&admin=change_info+invite_users+post_messages`);
+
+      await ctx.reply(
+        `🏘️ <b>Add GrowBot to Your Community</b>\n\n` +
+          `Tap a button below to add me to your group or channel.\n` +
+          `I'll be added with the permissions I need to track referrals.\n\n` +
+          `<b>What happens next:</b>\n` +
+          `1. Select your group or channel\n` +
+          `2. Confirm the admin permissions\n` +
+          `3. ✅ Your community auto-registers in the dashboard!\n\n` +
+          `<i>Tip: I need admin rights to track member joins and verify referrals.</i>`,
+        { reply_markup: keyboard, parse_mode: 'HTML' },
       );
     });
 
@@ -196,9 +221,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
       if (text.startsWith('/')) {
         const cmd = text.split(' ')[0];
-        if (!['/start', '/help', '/stats'].includes(cmd)) {
+        if (!['/start', '/help', '/stats', '/addcommunity'].includes(cmd)) {
           await ctx.reply(
-            `🤖 <b>GrowBot Helper</b>\n\nUnknown command <code>${cmd}</code>.\n\nAvailable commands:\n• /start\n• /help\n• /stats`,
+            `🤖 <b>GrowBot Helper</b>\n\nUnknown command <code>${cmd}</code>.\n\nAvailable commands:\n• /start\n• /addcommunity\n• /stats\n• /help`,
             { reply_markup: keyboard, parse_mode: 'HTML' },
           );
         }
