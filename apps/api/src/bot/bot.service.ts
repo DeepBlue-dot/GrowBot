@@ -6,22 +6,39 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard } from 'grammy';
-import { ReferralService } from '../referral/referral.service';
+import { ReferralService } from '../referral/referral.service.js';
+import { CommunityService } from '../community/community.service.js';
+import type { TelegramChatData } from '../community/community.service.js';
+
+// ────────────────────────────────────────────────────────────────
+// Types for Telegram Updates
+// ────────────────────────────────────────────────────────────────
 
 export interface ChatMemberUpdated {
-  chat: { id: number | string };
+  chat: { id: number | string; title?: string; username?: string; type?: string };
+  from: { id: number | string; username?: string };
   new_chat_member: {
     status: string;
-    user: { id: number | string; username?: string };
+    user: { id: number | string; username?: string; is_bot?: boolean };
   };
+  old_chat_member?: {
+    status: string;
+    user: { id: number | string; username?: string; is_bot?: boolean };
+  };
+  invite_link?: { invite_link: string };
 }
 
 export interface Update {
   update_id: number;
   chat_member?: ChatMemberUpdated;
+  my_chat_member?: ChatMemberUpdated;
   message?: Record<string, unknown>;
   [key: string]: unknown;
 }
+
+// ────────────────────────────────────────────────────────────────
+// Bot Service
+// ────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class BotService implements OnModuleInit, OnModuleDestroy {
@@ -31,13 +48,14 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly referralService: ReferralService,
+    private readonly communityService: CommunityService,
   ) {}
 
   async onModuleInit() {
     const token =
       this.configService.get<string>('TELEGRAM_BOT_TOKEN') ||
       process.env.TELEGRAM_BOT_TOKEN ||
-      '8968966948:AAGXgsBnaMR6XE2rfTZph-uhhrnY7qKTWrQ';
+      '';
 
     this.bot = new Bot(token);
     this.setupHandlers();
@@ -92,6 +110,10 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // ──────────────────────────────────────────────────
+  // Handler Setup
+  // ──────────────────────────────────────────────────
+
   private setupHandlers() {
     if (!this.bot) return;
 
@@ -111,7 +133,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       const startParam = ctx.match; // e.g. ref_CODE
       const miniAppUrl =
         this.configService.get<string>('MINI_APP_URL') ||
-        'https://grow-hekggrmnr-deepblue-dots-projects.vercel.app/miniapp';
+        'https://grow-bot-brown.vercel.app/miniapp';
 
       const keyboard = new InlineKeyboard()
         .webApp('🚀 Open GrowBot Mini App', miniAppUrl)
@@ -135,7 +157,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         `💡 <b>GrowBot Command Reference:</b>\n\n` +
           `• <b>/start</b> - Open Mini App and get referral link\n` +
           `• <b>/stats</b> - View referral invites performance\n` +
-          `• <b>/help</b> - Display bot usage guide`,
+          `• <b>/help</b> - Display bot usage guide\n\n` +
+          `<b>How to add a community:</b>\n` +
+          `1. Add @${ctx.me.username} to your group or channel\n` +
+          `2. Make the bot an <b>administrator</b>\n` +
+          `3. The community auto-registers in your dashboard!`,
         { parse_mode: 'HTML' },
       );
     });
@@ -184,27 +210,35 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
-    // Listener: chat_member update
+    // ──────────────────────────────────────────────────
+    // Listener: my_chat_member (bot added/removed from chat)
+    // ──────────────────────────────────────────────────
+    this.bot.on('my_chat_member', async (ctx) => {
+      await this.handleMyChatMemberUpdate(ctx.myChatMember, ctx.api);
+    });
+
+    // ──────────────────────────────────────────────────
+    // Listener: chat_member (user join/leave in chats)
+    // ──────────────────────────────────────────────────
     this.bot.on('chat_member', async (ctx) => {
       await this.handleChatMemberUpdate(ctx.chatMember);
     });
   }
 
+  // ──────────────────────────────────────────────────
+  // Webhook Processing
+  // ──────────────────────────────────────────────────
+
   verifySecretHeader(secretHeader: string): boolean {
     const expectedSecret =
       this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET') ||
       process.env.TELEGRAM_WEBHOOK_SECRET ||
-      'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42';
+      '';
 
     if (!secretHeader && process.env.NODE_ENV !== 'production') {
       return true;
     }
-    return (
-      secretHeader === expectedSecret ||
-      secretHeader ===
-        'b5871b4b44d8a6765f6aafde89440cbd01cd74da64a99fab568f5f79e84ceb42' ||
-      secretHeader === 'growbot_secret_token_123'
-    );
+    return secretHeader === expectedSecret;
   }
 
   async processUpdate(update: Update) {
@@ -231,7 +265,18 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    if (update.chat_member) {
+    // Fallback manual processing for updates grammY may not route
+    if (update.my_chat_member && !this.bot) {
+      try {
+        return await this.handleMyChatMemberUpdate(update.my_chat_member);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Error handling my_chat_member update: ${msg}`);
+        return { status: 'error', error: msg };
+      }
+    }
+
+    if (update.chat_member && !this.bot) {
       try {
         return await this.handleChatMemberUpdate(update.chat_member);
       } catch (err: unknown) {
@@ -244,18 +289,196 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     return { status: 'ok', processed: true };
   }
 
+  // ──────────────────────────────────────────────────
+  // my_chat_member: Bot added/removed/promoted/demoted
+  // ──────────────────────────────────────────────────
+
+  /**
+   * Handles `my_chat_member` updates — fired when the bot's own status
+   * changes in a chat (added, promoted to admin, demoted, removed).
+   *
+   * This is the core auto-registration mechanism:
+   * - Bot promoted to admin → register community in DB
+   * - Bot added as member → register with NO_ADMIN_RIGHTS warning
+   * - Bot removed/kicked → mark community as KICKED
+   * - Bot demoted → mark as NO_ADMIN_RIGHTS
+   */
+  private async handleMyChatMemberUpdate(
+    update: ChatMemberUpdated,
+    api?: Bot['api'],
+  ) {
+    const chatId = BigInt(update.chat.id);
+    const chatTitle = update.chat.title || 'Unknown Chat';
+    const chatType = update.chat.type || 'group';
+    const chatUsername = update.chat.username;
+    const addedByTelegramId = BigInt(update.from.id);
+    const newStatus = update.new_chat_member.status;
+    const oldStatus = update.old_chat_member?.status;
+
+    this.logger.log(
+      `🤖 [my_chat_member] Bot status changed: ${oldStatus} → ${newStatus} in "${chatTitle}" (${chatId.toString()}) by user ${update.from.username || addedByTelegramId.toString()}`,
+    );
+
+    // Skip private chats — bot only registers groups/channels
+    if (chatType === 'private') {
+      return { status: 'skipped', reason: 'private_chat' };
+    }
+
+    if (newStatus === 'administrator') {
+      // ── Bot was promoted to admin → Full registration ──
+      this.logger.log(
+        `✅ Bot promoted to ADMIN in "${chatTitle}" — registering community...`,
+      );
+
+      // Try to get richer chat data via API
+      let memberCount = 0;
+      let inviteLink: string | undefined;
+      try {
+        if (api) {
+          const chatInfo = await api.getChat(Number(chatId));
+          memberCount =
+            (chatInfo as unknown as { member_count?: number }).member_count ?? 0;
+          inviteLink =
+            (chatInfo as unknown as { invite_link?: string }).invite_link ??
+            undefined;
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Could not fetch chat details for ${chatId.toString()}: ${msg}`);
+      }
+
+      // Try getChatMemberCount as fallback
+      if (!memberCount && api) {
+        try {
+          memberCount = await api.getChatMemberCount(Number(chatId));
+        } catch {
+          // Ignore
+        }
+      }
+
+      const chatData: TelegramChatData = {
+        chatId,
+        title: chatTitle,
+        username: chatUsername,
+        type: chatType as 'group' | 'supergroup' | 'channel',
+        memberCount,
+        inviteLink,
+      };
+
+      const community = await this.communityService.upsertFromTelegram(
+        chatData,
+        addedByTelegramId,
+      );
+
+      // Send confirmation message to the chat
+      if (api) {
+        try {
+          await api.sendMessage(
+            Number(chatId),
+            `✅ <b>GrowBot is now active!</b>\n\n` +
+              `This community has been registered.\n` +
+              `The admin can now manage campaigns from the web dashboard.\n\n` +
+              `📊 Members: <b>${memberCount}</b>\n` +
+              `🔗 Dashboard: <a href="https://grow-bot-brown.vercel.app">Open Dashboard</a>`,
+            { parse_mode: 'HTML' },
+          );
+        } catch {
+          // Bot may not have permission to send messages yet
+        }
+      }
+
+      return {
+        status: 'community_registered',
+        communityId: community.id,
+        title: community.title,
+      };
+    } else if (newStatus === 'member') {
+      // ── Bot added but NOT as admin → Register with warning ──
+      this.logger.warn(
+        `⚠️ Bot added as MEMBER (not admin) in "${chatTitle}" — registering with NO_ADMIN_RIGHTS`,
+      );
+
+      const chatData: TelegramChatData = {
+        chatId,
+        title: chatTitle,
+        username: chatUsername,
+        type: chatType as 'group' | 'supergroup' | 'channel',
+        memberCount: 0,
+      };
+
+      const community = await this.communityService.upsertFromTelegram(
+        chatData,
+        addedByTelegramId,
+      );
+
+      // Update status to NO_ADMIN_RIGHTS
+      await this.communityService.updateBotStatus(chatId, 'NO_ADMIN_RIGHTS');
+
+      // Notify the chat that admin rights are needed
+      if (api) {
+        try {
+          await api.sendMessage(
+            Number(chatId),
+            `⚠️ <b>GrowBot needs admin rights!</b>\n\n` +
+              `I've been added to this ${chatType}, but I need <b>administrator permissions</b> to:\n` +
+              `• Track member joins and leaves\n` +
+              `• Verify referral attributions\n` +
+              `• Send campaign notifications\n\n` +
+              `Please promote me to admin to activate full functionality.`,
+            { parse_mode: 'HTML' },
+          );
+        } catch {
+          // Bot may not have permission to send messages
+        }
+      }
+
+      return {
+        status: 'community_registered_no_admin',
+        communityId: community.id,
+        title: community.title,
+      };
+    } else if (newStatus === 'left' || newStatus === 'kicked') {
+      // ── Bot removed or kicked ──
+      this.logger.warn(
+        `❌ Bot was ${newStatus} from "${chatTitle}" (${chatId.toString()})`,
+      );
+      await this.communityService.updateBotStatus(chatId, 'KICKED');
+
+      return { status: 'bot_removed', chatId: chatId.toString() };
+    } else if (newStatus === 'restricted') {
+      // ── Bot was restricted/demoted ──
+      this.logger.warn(
+        `⚠️ Bot was restricted in "${chatTitle}" (${chatId.toString()})`,
+      );
+      await this.communityService.updateBotStatus(chatId, 'NO_ADMIN_RIGHTS');
+
+      return { status: 'bot_restricted', chatId: chatId.toString() };
+    }
+
+    return { status: 'unhandled_bot_status', newStatus };
+  }
+
+  // ──────────────────────────────────────────────────
+  // chat_member: User join/leave (referral attribution)
+  // ──────────────────────────────────────────────────
+
   private async handleChatMemberUpdate(chatMemberUpdate: ChatMemberUpdated) {
     const chatId = String(chatMemberUpdate.chat.id);
     const user = chatMemberUpdate.new_chat_member.user;
     const inviteeId = String(user.id);
     const newStatus = chatMemberUpdate.new_chat_member.status;
 
+    // Skip bot's own status changes
+    if (user.is_bot) {
+      return { status: 'skipped', reason: 'bot_user' };
+    }
+
     this.logger.log(
       `[ChatMemberUpdate] User ${user.username || inviteeId} status changed to ${newStatus} in chat ${chatId}`,
     );
 
     if (newStatus === 'member') {
-      // Step 5: Check PostgreSQL intent via ReferralService
+      // Step 5: Check pending intent via ReferralService
       const pendingIntent = await this.referralService.findPendingIntent(
         inviteeId,
         chatId,
@@ -263,27 +486,30 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
       if (pendingIntent) {
         this.logger.log(
-          `🎯 [PostgreSQL Referral Verified] Invitee ${inviteeId} matched intent from Referrer ${pendingIntent.referrerCode}! Crediting referral...`,
+          `🎯 [Referral Verified] Invitee ${inviteeId} matched intent from Referrer ${pendingIntent.referrerCode}! Crediting referral...`,
         );
         await this.referralService.markValidated(inviteeId, chatId);
         return {
           status: 'referral_validated',
           inviteeId,
           referrerCode: pendingIntent.referrerCode,
-          storage: 'PostgreSQL',
         };
       }
     } else if (newStatus === 'left' || newStatus === 'kicked') {
-      // Anti-Cheat Credit Revocation in PostgreSQL
+      // Anti-Cheat Credit Revocation
       this.logger.warn(
-        `⚠️ [PostgreSQL Anti-Cheat Revocation] Member ${inviteeId} left chat ${chatId}. Revoking unearned referral credit in PostgreSQL...`,
+        `⚠️ [Anti-Cheat Revocation] Member ${inviteeId} left chat ${chatId}. Revoking unearned referral credit...`,
       );
       await this.referralService.markRevoked(inviteeId, chatId);
-      return { status: 'referral_revoked', inviteeId, storage: 'PostgreSQL' };
+      return { status: 'referral_revoked', inviteeId };
     }
 
     return { status: 'member_updated', newStatus };
   }
+
+  // ──────────────────────────────────────────────────
+  // Lifecycle
+  // ──────────────────────────────────────────────────
 
   async onModuleDestroy() {
     if (this.bot) {
