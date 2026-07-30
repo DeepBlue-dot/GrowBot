@@ -739,6 +739,96 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async sendGroupWelcomeAttribution(
+    chatId: number | string | bigint,
+    inviteeUsername: string,
+    referrerUsername: string,
+    campaignTitle = 'Growth Sprint',
+  ) {
+    if (!this.bot) return;
+    try {
+      await this.bot.api.sendMessage(
+        Number(chatId),
+        `🎯 <b>NEW MEMBER ATTRIBUTED!</b>\n\n` +
+          `Welcome @${inviteeUsername}! Joined via @${referrerUsername}'s referral link for <b>${campaignTitle}</b>! 🚀`,
+        { parse_mode: 'HTML' },
+      );
+      this.logger.log(`📢 Sent group welcome attribution to chat ${chatId.toString()}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to send group welcome attribution: ${msg}`);
+    }
+  }
+
+  async sendCampaignCompletedNotice(
+    chatId: number | string | bigint,
+    title: string,
+    topInviters: Array<{ username: string; count: number }> = [],
+  ) {
+    if (!this.bot) return;
+    try {
+      let ranksText = '';
+      if (topInviters.length > 0) {
+        ranksText =
+          '\n\n🏆 <b>Top Community Inviters:</b>\n' +
+          topInviters
+            .map((inviter, idx) => {
+              const medal =
+                idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅';
+              return `${medal} @${inviter.username} — <b>${inviter.count}</b> invites`;
+            })
+            .join('\n');
+      }
+
+      await this.bot.api.sendMessage(
+        Number(chatId),
+        `🏁 <b>CAMPAIGN COMPLETED!</b>\n\n` +
+          `The campaign <b>${title}</b> has officially ended.${ranksText}\n\n` +
+          `Thank you to all participants for growing our community! 🎉`,
+        { parse_mode: 'HTML' },
+      );
+      this.logger.log(
+        `📢 Sent campaign completed notice to chat ${chatId.toString()}`,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to send campaign completed notice: ${msg}`);
+    }
+  }
+
+  async sendGroupBroadcast(
+    chatId: number | string | bigint,
+    messageText: string,
+  ) {
+    if (!this.bot) return;
+    try {
+      const miniAppUrl =
+        this.configService.get<string>('MINI_APP_URL') ||
+        'https://grow-bot-brown.vercel.app/miniapp';
+
+      const keyboard = new InlineKeyboard().webApp(
+        '🚀 Open GrowBot Mini App',
+        miniAppUrl,
+      );
+
+      await this.bot.api.sendMessage(
+        Number(chatId),
+        `📢 <b>COMMUNITY ANNOUNCEMENT</b>\n\n${messageText}`,
+        { reply_markup: keyboard, parse_mode: 'HTML' },
+      );
+      this.logger.log(
+        `📢 Sent group broadcast message to chat ${chatId.toString()}`,
+      );
+      return { success: true };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `Failed to send group broadcast to chat ${chatId.toString()}: ${msg}`,
+      );
+      throw new Error(`Failed to send broadcast: ${msg}`);
+    }
+  }
+
   // ──────────────────────────────────────────────────
   // Lifecycle
   // ──────────────────────────────────────────────────

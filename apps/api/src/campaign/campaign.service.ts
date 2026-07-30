@@ -240,6 +240,15 @@ export class CampaignService {
         existing.rewardDescription || 'VIP Pass',
         existing.referralTarget || 5,
       );
+    } else if (status === 'COMPLETED' && existing.community) {
+      const topInviters = await this.getLeaderboard(id);
+      await this.botService.sendCampaignCompletedNotice(
+        existing.community.telegramChatId,
+        existing.title,
+        topInviters
+          .slice(0, 3)
+          .map((p) => ({ username: p.username, count: p.validatedReferrals })),
+      );
     }
 
     return this.findOne(id);

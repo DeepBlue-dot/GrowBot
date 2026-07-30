@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventService } from '../event/event.service';
 import { RewardService } from '../reward/reward.service';
+import { BotService } from '../bot/bot.service';
 
 export interface PostgresReferralIntent {
   id: string;
@@ -21,6 +22,8 @@ export class ReferralService {
     private readonly prisma: PrismaService,
     private readonly eventService: EventService,
     private readonly rewardService: RewardService,
+    @Inject(forwardRef(() => BotService))
+    private readonly botService: BotService,
   ) {}
 
   async registerIntent(
@@ -307,6 +310,16 @@ export class ReferralService {
           await this.rewardService.checkAndCreateMilestoneReward(
             referral.campaignId,
             referral.referrerId,
+          );
+
+          // Dispatch Group Welcome Attribution Notification
+          const referrerUser = await this.prisma.user.findUnique({ where: { id: referral.referrerId } });
+          const inviteeUsername = inviteeUser.username || inviteeUser.firstName || inviteeId;
+          const referrerUsername = referrerUser?.username || referrerUser?.firstName || 'Referrer';
+          await this.botService.sendGroupWelcomeAttribution(
+            communityChatId,
+            inviteeUsername,
+            referrerUsername,
           );
 
           this.logger.log(
