@@ -11,9 +11,9 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { CampaignService } from './campaign.service.js';
-import { CreateCampaignDto, UpdateCampaignDto } from './dto/campaign.dto.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { CampaignService } from './campaign.service';
+import { CreateCampaignDto, UpdateCampaignDto } from './dto/campaign.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('campaigns')
 export class CampaignController {
@@ -22,6 +22,11 @@ export class CampaignController {
   @Get()
   async findAll(@Query('communityId') communityId?: string) {
     return this.campaignService.findAll(communityId);
+  }
+
+  @Get('leaderboard')
+  async getGlobalLeaderboard() {
+    return this.campaignService.getLeaderboard();
   }
 
   @Get(':id')

@@ -28,7 +28,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         }
       }
     } catch {
-      // Keep fallback
+      // Keep fallback mock
     } finally {
       isLoading.value = false;
     }
@@ -41,7 +41,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         communities.value = res.data;
       }
     } catch {
-      // Keep fallback
+      // Keep fallback mock
     }
   }
 
@@ -49,14 +49,24 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     currentWorkspaceId.value = id;
   }
 
-  function addWorkspace(newWs: Omit<Workspace, 'id' | 'communitiesCount'>) {
-    const created: Workspace = {
-      ...newWs,
-      id: `ws-${Date.now()}`,
-      communitiesCount: 0,
-    };
-    workspaces.value.push(created);
-    currentWorkspaceId.value = created.id;
+  async function addWorkspace(newWs: Omit<Workspace, 'id' | 'communitiesCount'>) {
+    try {
+      const res = await api.post<Workspace>('/workspaces', newWs);
+      if (res.data) {
+        workspaces.value.push(res.data);
+        currentWorkspaceId.value = res.data.id;
+        return res.data;
+      }
+    } catch {
+      const created: Workspace = {
+        ...newWs,
+        id: `ws-${Date.now()}`,
+        communitiesCount: 0,
+      };
+      workspaces.value.push(created);
+      currentWorkspaceId.value = created.id;
+      return created;
+    }
   }
 
   // Initial fetch
