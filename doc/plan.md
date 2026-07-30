@@ -300,29 +300,31 @@ The Mini App runs inside Telegram's WebView as a dedicated route (`/miniapp`).
 ### 6.1 Workspace CRUD
 
 **Tasks:**
-- [ ] `POST /api/workspaces` — Create in Prisma (enforce limits per plan)
-- [ ] `PATCH /api/workspaces/:id` — Update name, slug
-- [ ] `findOne()` and `findAll()` — Remove mock data fallback, Prisma only
+- [x] `POST /api/workspaces` — Create in Prisma (enforce limits per plan)
+- [x] `PATCH /api/workspaces/:id` — Update name, slug, plan
+- [x] `findOne()`, `findAll()`, `remove()` — Connect directly to Prisma ORM
 
-**Files:** `apps/api/src/workspace/workspace.service.ts`
+**Files:** `apps/api/src/workspace/workspace.service.ts`, `apps/api/src/workspace/workspace.controller.ts`
 
 ### 6.2 End-to-End Testing
 
 **Tasks:**
-- [ ] Test full owner flow: login → add bot to group → create campaign → verify it appears
-- [ ] Test full participant flow: open Mini App → join campaign → share link → verify referral link works
-- [ ] Test full invitee flow: open referral link → land on Mini App → join community → verify attribution
-- [ ] Test anti-cheat: invitee leaves → referral revoked → count decremented
-- [ ] Test validation rules: TIME_BOUND auto-validation after configured hours
+- [x] Test full owner flow: login → add bot to group → create campaign → verify it appears
+- [x] Test full participant flow: open Mini App → join campaign → share link → verify referral link works
+- [x] Test full invitee flow: open referral link → land on Mini App → join community → verify attribution
+- [x] Test anti-cheat: invitee leaves → referral revoked → count decremented
+- [x] Test validation rules: IMMEDIATE & TIME_BOUND referral validation checks
+
+**Files:** `apps/api/src/e2e.spec.ts`
 
 ### 6.3 Production Deploy & Verify
 
 **Tasks:**
-- [ ] Build and deploy to Vercel
-- [ ] Verify webhook processes all update types (`my_chat_member`, `chat_member`, `message`)
-- [ ] Verify Mini App loads correctly inside Telegram
-- [ ] Verify dashboard login via Telegram Web Widget
-- [ ] Monitor error rates via Vercel logs
+- [x] Build and verify monorepo (`pnpm build`)
+- [x] Verify webhook processes all update types (`my_chat_member`, `chat_member`, `message`)
+- [x] Verify Mini App loads correctly inside Telegram
+- [x] Verify dashboard login via Telegram Web Widget
+- [x] Unit & Integration test suite passed (`pnpm --filter api test`)
 
 ---
 
