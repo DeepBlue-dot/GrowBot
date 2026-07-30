@@ -31,7 +31,7 @@ const showCreateModal = ref(false);
           change="+18.4% this week"
           :is-positive="true"
           :icon="Users"
-          accent-color="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+          accent-color="bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
         />
         <StatCard 
           title="Verified Referrals"
@@ -39,13 +39,13 @@ const showCreateModal = ref(false);
           change="+240 today"
           :is-positive="true"
           :icon="UserCheck"
-          accent-color="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+          accent-color="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
         />
         <StatCard 
           title="Active Campaigns"
           :value="campaignStore.activeCampaigns.length"
           :icon="Megaphone"
-          accent-color="bg-amber-500/10 text-amber-400 border border-amber-500/20"
+          accent-color="bg-amber-500/15 text-amber-400 border border-amber-500/30"
         />
         <StatCard 
           title="Attribution Velocity"
@@ -53,7 +53,7 @@ const showCreateModal = ref(false);
           change="Zero Rate-Limit"
           :is-positive="true"
           :icon="Zap"
-          accent-color="bg-purple-500/10 text-purple-400 border border-purple-500/20"
+          accent-color="bg-purple-500/15 text-purple-400 border border-purple-500/30"
         />
       </div>
 
@@ -64,33 +64,36 @@ const showCreateModal = ref(false);
         </div>
 
         <!-- Quick Summary Panel -->
-        <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+        <div class="bg-slate-900/70 backdrop-blur-xl border border-slate-800/90 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
           <div>
-            <h3 class="text-base font-bold text-slate-100 mb-4">Bot & Community Status</h3>
+            <h3 class="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Bot & Engine Status</span>
+            </h3>
             
             <div class="space-y-4">
-              <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+              <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between shadow-inner">
                 <div>
                   <p class="text-xs font-bold text-slate-200">grammY Webhook Engine</p>
                   <p class="text-[11px] text-slate-400">Telegram Bot API</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">CONNECTED</span>
+                <span class="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">CONNECTED</span>
               </div>
 
-              <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+              <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between shadow-inner">
                 <div>
-                  <p class="text-xs font-bold text-slate-200">Redis Attribution Store</p>
-                  <p class="text-[11px] text-slate-400">24h Intent Cache</p>
+                  <p class="text-xs font-bold text-slate-200">PostgreSQL Intent Pipeline</p>
+                  <p class="text-[11px] text-slate-400">24h Intent Attribution</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">HEALTHY</span>
+                <span class="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">HEALTHY</span>
               </div>
 
-              <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+              <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between shadow-inner">
                 <div>
                   <p class="text-xs font-bold text-slate-200">Anti-Cheat Revocation</p>
                   <p class="text-[11px] text-slate-400">Member Leave Tracker</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-mono font-bold">ACTIVE</span>
+                <span class="px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 text-xs font-mono font-bold">ACTIVE</span>
               </div>
             </div>
           </div>
@@ -98,7 +101,7 @@ const showCreateModal = ref(false);
           <div class="mt-6 pt-4 border-t border-slate-800/80">
             <router-link 
               to="/miniapp" 
-              class="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-semibold flex items-center justify-center gap-2 transition"
+              class="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600/20 to-purple-600/20 hover:from-indigo-600/40 hover:to-purple-600/40 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center justify-center gap-2 transition duration-200 shadow-md"
             >
               <span>Test Mini App Experience 📱</span>
             </router-link>
