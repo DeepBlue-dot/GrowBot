@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
-import { CampaignService } from './campaign.service.js';
-import { CampaignController } from './campaign.controller.js';
-import { BotModule } from '../bot/bot.module.js';
+import { Module, forwardRef } from '@nestjs/common';
+import { CampaignService } from './campaign.service';
+import { CampaignController } from './campaign.controller';
+import { BotModule } from '../bot/bot.module';
 
 @Module({
-  imports: [BotModule],
+  imports: [forwardRef(() => BotModule)],
   controllers: [CampaignController],
   providers: [CampaignService],
   exports: [CampaignService],

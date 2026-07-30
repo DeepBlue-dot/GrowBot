@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
-import { RewardService } from './reward.service.js';
-import { RewardController } from './reward.controller.js';
-import { EventModule } from '../event/event.module.js';
-import { BotModule } from '../bot/bot.module.js';
+import { Module, forwardRef } from '@nestjs/common';
+import { RewardService } from './reward.service';
+import { RewardController } from './reward.controller';
+import { EventModule } from '../event/event.module';
+import { BotModule } from '../bot/bot.module';
 
 @Module({
-  imports: [EventModule, BotModule],
+  imports: [EventModule, forwardRef(() => BotModule)],
   controllers: [RewardController],
   providers: [RewardService],
   exports: [RewardService],
