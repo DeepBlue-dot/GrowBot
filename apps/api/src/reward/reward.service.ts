@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { EventService } from '../event/event.service.js';
-import { BotService } from '../bot/bot.service.js';
+import { PrismaService } from '../prisma/prisma.service';
+import { EventService } from '../event/event.service';
+import { BotService } from '../bot/bot.service';
 
 export interface RewardItem {
   id: string;

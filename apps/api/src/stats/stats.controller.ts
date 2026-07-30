@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { StatsService } from './stats.service.js';
+import { StatsService } from './stats.service';
 
 @Controller('stats')
 export class StatsController {

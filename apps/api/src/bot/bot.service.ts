@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard } from 'grammy';
-import { ReferralService } from '../referral/referral.service.js';
-import { CommunityService } from '../community/community.service.js';
-import { StatsService } from '../stats/stats.service.js';
-import type { TelegramChatData } from '../community/community.service.js';
+import { ReferralService } from '../referral/referral.service';
+import { CommunityService } from '../community/community.service';
+import { StatsService } from '../stats/stats.service';
+import type { TelegramChatData } from '../community/community.service';
 
 // ────────────────────────────────────────────────────────────────
 // Types for Telegram Updates

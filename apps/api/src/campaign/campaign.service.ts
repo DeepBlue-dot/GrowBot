@@ -3,16 +3,16 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCampaignDto,
   UpdateCampaignDto,
   CampaignRuleInput,
-} from './dto/campaign.dto.js';
+} from './dto/campaign.dto';
 
 export { CreateCampaignDto, UpdateCampaignDto, CampaignRuleInput };
 
-import { BotService } from '../bot/bot.service.js';
+import { BotService } from '../bot/bot.service';
 
 @Injectable()
 export class CampaignService {

@@ -1,7 +1,7 @@
 import { Controller, Get, Param, UseGuards, Query } from '@nestjs/common';
-import { CommunityService } from './community.service.js';
-import { StatsService } from '../stats/stats.service.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { CommunityService } from './community.service';
+import { StatsService } from '../stats/stats.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('communities')
 export class CommunityController {

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { EventService } from '../event/event.service.js';
-import { RewardService } from '../reward/reward.service.js';
+import { PrismaService } from '../prisma/prisma.service';
+import { EventService } from '../event/event.service';
+import { RewardService } from '../reward/reward.service';
 
 export interface PostgresReferralIntent {
   id: string;
