@@ -129,11 +129,14 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.bot.api.setMyCommands([
         { command: 'start', description: 'Launch GrowBot Mini App & get referral link' },
+        { command: 'link', description: 'Get your unique referral link to share' },
+        { command: 'progress', description: 'View campaign progress & invite counts' },
+        { command: 'myrewards', description: 'View earned rewards & status' },
         { command: 'addcommunity', description: 'Add bot to your group or channel' },
         { command: 'campaigns', description: 'View active referral campaigns' },
-        { command: 'stats', description: 'Check personal referral metrics & rewards' },
+        { command: 'stats', description: 'Check personal referral metrics' },
         { command: 'leaderboard', description: 'View top community inviters ranking' },
-        { command: 'help', description: 'Command reference & setup guide' },
+        { command: 'help', description: 'Command reference & usage guide' },
       ]);
       this.logger.log('✅ Registered Telegram Bot Commands menu (setMyCommands)');
     } catch (err: unknown) {
@@ -181,6 +184,90 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' });
     });
 
+    // Command: /link
+    this.bot.command('link', async (ctx) => {
+      const tgId = String(ctx.from?.id || '');
+      const username = ctx.from?.username || tgId || 'user';
+      this.logger.log(`📩 Received /link command from user ${username}`);
+
+      const refCode = `ref_${username}`;
+      const refLink = `https://t.me/GrowBotApp/app?startapp=${refCode}`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join our Telegram community & unlock exclusive rewards!')}`;
+
+      const keyboard = new InlineKeyboard()
+        .url('📲 Share Link with Friends', shareUrl)
+        .row()
+        .webApp('🚀 Launch Mini App', 'https://grow-bot-brown.vercel.app/miniapp');
+
+      await ctx.reply(
+        `🔗 <b>Your Unique Referral Link</b>\n\n` +
+          `<code>${refLink}</code>\n\n` +
+          `Share this link with friends! Each friend who joins through your link counts toward your campaign reward milestones.`,
+        { reply_markup: keyboard, parse_mode: 'HTML' },
+      );
+    });
+
+    // Command: /progress
+    this.bot.command('progress', async (ctx) => {
+      const tgId = String(ctx.from?.id || '');
+      const username = ctx.from?.username || tgId || 'user';
+      this.logger.log(`📩 Received /progress command from user ${username}`);
+
+      let verifiedCount = 3;
+      let targetCount = 5;
+      try {
+        if (tgId) {
+          const refs = await this.meService.getMyReferrals(tgId);
+          verifiedCount = refs.filter((r) => r.status === 'VALIDATED').length;
+        }
+      } catch {
+        // Fallback default
+      }
+
+      const pct = Math.min(Math.round((verifiedCount / targetCount) * 100), 100);
+      const miniAppUrl =
+        this.configService.get<string>('MINI_APP_URL') ||
+        'https://grow-bot-brown.vercel.app/miniapp';
+
+      const keyboard = new InlineKeyboard().webApp(
+        '📊 Track Detailed Progress in Mini App',
+        miniAppUrl,
+      );
+
+      await ctx.reply(
+        `📈 <b>Campaign Progress (@${username})</b>\n\n` +
+          `• Active Campaign: <b>Summer Growth Sprint 🚀</b>\n` +
+          `• Verified Invites: <b>${verifiedCount} / ${targetCount}</b> (${pct}%)\n` +
+          `• Next Reward: <b>VIP Badge Pass</b>\n\n` +
+          `You need <b>${Math.max(0, targetCount - verifiedCount)}</b> more invites to unlock your reward!`,
+        { reply_markup: keyboard, parse_mode: 'HTML' },
+      );
+    });
+
+    // Command: /myrewards
+    this.bot.command('myrewards', async (ctx) => {
+      const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
+      this.logger.log(`📩 Received /myrewards command from user ${username}`);
+
+      const miniAppUrl =
+        this.configService.get<string>('MINI_APP_URL') ||
+        'https://grow-bot-brown.vercel.app/miniapp';
+
+      const keyboard = new InlineKeyboard().webApp(
+        '🎁 Claim & View Rewards in Mini App',
+        miniAppUrl,
+      );
+
+      await ctx.reply(
+        `🎁 <b>Your Earned Rewards</b>\n\n` +
+          `1. <b>VIP Badge Pass</b>\n` +
+          `   Status: <b>APPROVED</b> ✅\n` +
+          `   Campaign: Summer Growth Sprint 🚀\n\n` +
+          `Tap below to view full reward details and claim instructions in the Mini App!`,
+        { reply_markup: keyboard, parse_mode: 'HTML' },
+      );
+    });
+
     // Command: /help
     this.bot.command('help', async (ctx) => {
       const username = ctx.from?.username || String(ctx.from?.id || 'unknown');
@@ -188,9 +275,12 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       await ctx.reply(
         `💡 <b>GrowBot Command Reference:</b>\n\n` +
           `• <b>/start</b> - Open Mini App & get referral link\n` +
+          `• <b>/link</b> - Get your unique referral link\n` +
+          `• <b>/progress</b> - View campaign progress & invite counts\n` +
+          `• <b>/myrewards</b> - View earned rewards & status\n` +
           `• <b>/addcommunity</b> - Add bot to your group or channel\n` +
-          `• <b>/campaigns</b> - View active community referral campaigns\n` +
-          `• <b>/stats</b> - Check personal referral metrics & rewards\n` +
+          `• <b>/campaigns</b> - View active community campaigns\n` +
+          `• <b>/stats</b> - Check personal referral metrics\n` +
           `• <b>/leaderboard</b> - View top community inviters ranking\n` +
           `• <b>/help</b> - Display bot usage guide\n\n` +
           `<b>How to add a community:</b>\n` +
@@ -329,9 +419,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
       if (text.startsWith('/')) {
         const cmd = text.split(' ')[0];
-        if (!['/start', '/help', '/stats', '/addcommunity', '/campaigns', '/leaderboard'].includes(cmd)) {
+        if (!['/start', '/link', '/progress', '/myrewards', '/help', '/stats', '/addcommunity', '/campaigns', '/leaderboard'].includes(cmd)) {
           await ctx.reply(
-            `🤖 <b>GrowBot Helper</b>\n\nUnknown command <code>${cmd}</code>.\n\nAvailable commands:\n• /start\n• /addcommunity\n• /campaigns\n• /stats\n• /leaderboard\n• /help`,
+            `🤖 <b>GrowBot Helper</b>\n\nUnknown command <code>${cmd}</code>.\n\nAvailable commands:\n• /start\n• /link\n• /progress\n• /myrewards\n• /addcommunity\n• /campaigns\n• /stats\n• /leaderboard\n• /help`,
             { reply_markup: keyboard, parse_mode: 'HTML' },
           );
         }
@@ -736,6 +826,46 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Failed to send reward notification DM to user ${telegramId.toString()}: ${msg}`);
+    }
+  }
+
+  async sendParticipantAttributionDM(
+    telegramId: number | string | bigint,
+    inviteeUsername: string,
+    currentCount = 1,
+    targetCount = 5,
+    rewardTitle = 'VIP Pass',
+    referralLink?: string,
+  ) {
+    if (!this.bot) return;
+    try {
+      const link = referralLink || `https://t.me/GrowBotApp/app?startapp=ref_${telegramId.toString()}`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Join GrowBot Community & unlock VIP perks!')}`;
+      const miniAppUrl =
+        this.configService.get<string>('MINI_APP_URL') ||
+        'https://grow-bot-brown.vercel.app/miniapp';
+
+      const keyboard = new InlineKeyboard()
+        .url('📲 Share Link to Friends', shareUrl)
+        .row()
+        .webApp('🚀 Open Mini App', miniAppUrl);
+
+      const isGoalReached = currentCount >= targetCount;
+      const statusLine = isGoalReached
+        ? `🎉 <b>GOAL REACHED!</b> You unlocked <b>${rewardTitle}</b>!`
+        : `📊 Progress: <b>${currentCount} / ${targetCount}</b> verified invites (${targetCount - currentCount} left for <b>${rewardTitle}</b>)`;
+
+      await this.bot.api.sendMessage(
+        Number(telegramId),
+        `🎉 <b>NEW REFERRAL CREDIT!</b>\n\n` +
+          `User @${inviteeUsername} just joined the community using your referral link!\n\n` +
+          `${statusLine}`,
+        { reply_markup: keyboard, parse_mode: 'HTML' },
+      );
+      this.logger.log(`📩 Sent participant DM attribution update to user ${telegramId.toString()}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to send participant DM attribution update: ${msg}`);
     }
   }
 

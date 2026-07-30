@@ -95,5 +95,17 @@ describe('BotService Unit Tests', () => {
       });
       expect(res).toBeDefined();
     });
+
+    it('should handle sendParticipantAttributionDM without errors', async () => {
+      await expect(
+        botService.sendParticipantAttributionDM(
+          123456,
+          'john_doe',
+          4,
+          5,
+          'VIP Pass',
+        ),
+      ).resolves.not.toThrow();
+    });
   });
 });

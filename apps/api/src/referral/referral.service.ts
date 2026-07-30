@@ -312,15 +312,36 @@ export class ReferralService {
             referral.referrerId,
           );
 
-          // Dispatch Group Welcome Attribution Notification
+          // Dispatch Group Welcome Attribution Notification & Participant DM Update
           const referrerUser = await this.prisma.user.findUnique({ where: { id: referral.referrerId } });
           const inviteeUsername = inviteeUser.username || inviteeUser.firstName || inviteeId;
           const referrerUsername = referrerUser?.username || referrerUser?.firstName || 'Referrer';
+          
           await this.botService.sendGroupWelcomeAttribution(
             communityChatId,
             inviteeUsername,
             referrerUsername,
           );
+
+          if (referrerUser?.telegramId) {
+            const updatedParticipant = await this.prisma.campaignParticipant.findUnique({
+              where: {
+                campaignId_userId: {
+                  campaignId: referral.campaignId,
+                  userId: referral.referrerId,
+                },
+              },
+              include: { campaign: true },
+            });
+
+            await this.botService.sendParticipantAttributionDM(
+              referrerUser.telegramId,
+              inviteeUsername,
+              updatedParticipant?.validatedReferrals || 1,
+              updatedParticipant?.campaign.referralTarget || 5,
+              updatedParticipant?.campaign.rewardDescription || 'VIP Pass',
+            );
+          }
 
           this.logger.log(
             `🐘 [PostgreSQL Referral Validated] Referral ${referral.id} set to VALIDATED for invitee ${inviteeId}`,
