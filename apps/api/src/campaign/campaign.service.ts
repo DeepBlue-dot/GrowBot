@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -18,6 +20,7 @@ import { BotService } from '../bot/bot.service';
 export class CampaignService {
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => BotService))
     private readonly botService: BotService,
   ) {}
 

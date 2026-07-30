@@ -6,7 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../prisma/prisma.service';
 
 // ────────────────────────────────────────────────────────────────
 // Interfaces & Types
